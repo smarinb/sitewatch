@@ -6,7 +6,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 
 /**
- * Triggers a round of checks every tick.
+ * Triggers a round of checks every tick and purges old history once a day.
  * Disabled with {@code sitewatch.checker.enabled=false}.
  */
 @Configuration
@@ -23,5 +23,10 @@ class CheckScheduler {
     @Scheduled(fixedDelayString = "${sitewatch.checker.tick}", initialDelayString = "${sitewatch.checker.tick}")
     void tick() {
         runner.runDueChecks();
+    }
+
+    @Scheduled(cron = "${sitewatch.checker.retention-cron}")
+    void purge() {
+        runner.purgeOldChecks();
     }
 }

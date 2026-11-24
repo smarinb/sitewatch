@@ -48,4 +48,10 @@ public class CheckRecorder {
     public void skip(long siteId, Instant checkedAt) {
         sites.findById(siteId).ifPresent(site -> site.applyCheck(checkedAt, site.monitorState()));
     }
+
+    /** Deletes history older than the cutoff and returns how many rows went. */
+    @Transactional
+    public int deleteChecksBefore(Instant cutoff) {
+        return checks.deleteByCheckedAtBefore(cutoff);
+    }
 }

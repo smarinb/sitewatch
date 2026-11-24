@@ -204,7 +204,7 @@ class SiteCheckerTest {
 
     private SiteChecker checker(boolean allowPrivate, Duration timeout, SSLContext sslContext) {
         CheckerProperties properties = new CheckerProperties(false, Duration.ofSeconds(30), 100, 4, timeout,
-                timeout, DataSize.ofKilobytes(512), "SitewatchTest/1.0", allowPrivate);
+                timeout, DataSize.ofKilobytes(512), "SitewatchTest/1.0", allowPrivate, Duration.ofDays(90));
         client = CheckHttpClientConfig.create(properties, sslContext);
         return new SiteChecker(client, properties);
     }

@@ -88,4 +88,11 @@ public class CheckRunner {
         }
         alerts.dispatch(events);
     }
+
+    /** Deletes check history older than the configured retention. */
+    public int purgeOldChecks() {
+        int deleted = recorder.deleteChecksBefore(Instant.now().minus(properties.retention()));
+        log.info("Deleted {} check(s) older than {}", deleted, properties.retention());
+        return deleted;
+    }
 }

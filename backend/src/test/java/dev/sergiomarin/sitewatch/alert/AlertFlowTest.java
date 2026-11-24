@@ -148,6 +148,17 @@ class AlertFlowTest extends IntegrationTest {
         verify(mailSender, times(1)).send(any(SimpleMailMessage.class));
     }
 
+    @Test
+    void purgeDeletesOnlyChecksOlderThanRetention() throws Exception {
+        long id = createSite(server.url("/"));
+        runDue(id);
+        jdbc.update("INSERT INTO site_check (site_id, checked_at, up) VALUES (?, now() - interval '91 days', true)",
+                id);
+
+        assertThat(runner.purgeOldChecks()).isGreaterThanOrEqualTo(1);
+        Integer left = jdbc.queryForObject("SELECT count(*) FROM site_check WHERE site_id = ?", Integer.class, id);
+        assertThat(left).isEqualTo(1);
+    }
 
     /** Makes the site due and runs one round of checks. */
     private void runDue(long siteId) {

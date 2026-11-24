@@ -53,6 +53,8 @@ sitewatch:
     max-body-bytes: 512KB
     user-agent: "SitewatchBot/1.0 (+https://monitor.sergiomarin.dev)"
     allow-private-addresses: false
+    retention: 90d
+    retention-cron: "0 30 3 * * *"   # daily at 03:30 server time
   alerts:
     failure-threshold: 2
     ssl-warning: 14d

@@ -22,6 +22,7 @@ import org.springframework.validation.annotation.Validated;
  * @param maxBodyBytes          how much of a page is read (enough for the WordPress meta tag)
  * @param userAgent             sent with every request
  * @param allowPrivateAddresses lets checks reach loopback/private/link-local addresses; only for tests
+ * @param retention             how long check history is kept
  */
 @Validated
 @ConfigurationProperties("sitewatch.checker")
@@ -34,5 +35,6 @@ public record CheckerProperties(
         @NotNull Duration responseTimeout,
         @NotNull DataSize maxBodyBytes,
         @NotBlank String userAgent,
-        boolean allowPrivateAddresses) {
+        boolean allowPrivateAddresses,
+        @NotNull Duration retention) {
 }
