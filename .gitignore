@@ -1,0 +1,14 @@
+.idea/
+.vscode/
+*.iml
+.DS_Store
+.env
+*.tfstate
+*.tfstate.*
+.terraform/
+*.tfvars
+!*.tfvars.example
+
+# Claude Code private context
+CLAUDE.local.md
+.claude/settings.local.json

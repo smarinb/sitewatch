@@ -1,0 +1,28 @@
+# Local development: PostgreSQL + API. Frontend runs with `npm run dev`.
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: sitewatch
+      POSTGRES_USER: sitewatch
+      POSTGRES_PASSWORD: sitewatch
+    ports: ["5432:5432"]
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sitewatch"]
+      interval: 5s
+      retries: 10
+
+  api:
+    build: ./backend
+    environment:
+      DB_URL: jdbc:postgresql://db:5432/sitewatch
+      DB_USER: sitewatch
+      DB_PASSWORD: sitewatch
+    ports: ["8080:8080"]
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:

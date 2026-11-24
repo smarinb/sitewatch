@@ -1,0 +1,28 @@
+spring:
+  application:
+    name: sitewatch
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/sitewatch}
+    username: ${DB_USER:sitewatch}
+    password: ${DB_PASSWORD:sitewatch}
+    hikari:
+      maximum-pool-size: 5
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+
+server:
+  shutdown: graceful
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
