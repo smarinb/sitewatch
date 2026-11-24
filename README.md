@@ -65,7 +65,7 @@ Cada 30 s, un `@Scheduled` busca los sitios activos cuyo intervalo ha vencido (c
 - **Uptime y estado HTTP:** sigue hasta 5 redirecciones; un estado ≥ 400, un timeout o un error de red o TLS cuentan como caída, con el motivo en `error`.
 - **Tiempo de respuesta:** hasta recibir las cabeceras.
 - **Caducidad SSL:** fecha `notAfter` del certificado servido por HTTPS. Un certificado caducado o no válido cuenta como caída.
-- **Versión de WordPress:** `<meta name="generator">` de la portada. Si el sitio parece WordPress (`/wp-content/`, `/wp-includes/` o la cabecera `Link` de `api.w.org`) pero oculta la versión, prueba `feed/` y después `readme.html`.
+- **Versión de WordPress:** `<meta name="generator">` de la portada. Si el sitio parece WordPress (`/wp-content/`, `/wp-includes/` o la cabecera `Link` de `api.w.org`) pero oculta la versión, prueba `feed/`, `readme.html` y las hojas de estilo del núcleo que carga `wp-login.php` (`?ver=`), que los plugins de seguridad no suelen tocar. Estos sondeos se cachean 12 h por sitio para no generar tráfico extra ni alertar a plugins como Wordfence.
 
 **Protección SSRF:** los chequeos salen del servidor, así que un usuario podría apuntar un sitio a `localhost`, a la red privada o a los metadatos de AWS (`169.254.169.254`). El cliente HTTP (Apache HttpClient 5) usa un `DnsResolver` propio que rechaza cualquier host que resuelva a una dirección no pública (loopback, privadas, link-local, CGNAT, ULA, NAT64 o 6to4 con IPv4 privada…). Como el cliente se conecta exactamente a las direcciones validadas, la comprobación cubre también las redirecciones y el *DNS rebinding*.
 

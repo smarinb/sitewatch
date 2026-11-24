@@ -18,8 +18,12 @@ final class WordPressVersions {
     private static final Pattern FEED_GENERATOR = Pattern.compile(
             "<generator>\\s*https?://wordpress\\.org/\\?v=(\\d+\\.\\d+(?:\\.\\d+)?)\\s*</generator>",
             Pattern.CASE_INSENSITIVE);
+    /** Old readme.html: {@code <br /> Version 4.9.8}. Anchored so "PHP version 7.4" never matches. */
     private static final Pattern README_VERSION = Pattern.compile(
-            "\\bVersion\\s+(\\d+\\.\\d+(?:\\.\\d+)?)", Pattern.CASE_INSENSITIVE);
+            "<br\\s*/?>\\s*Version\\s+(\\d+\\.\\d+(?:\\.\\d+)?)", Pattern.CASE_INSENSITIVE);
+    /** Core stylesheets are enqueued with the WordPress version, e.g. {@code /wp-admin/css/forms.min.css?ver=6.7.1}. */
+    private static final Pattern CORE_ASSET_VERSION = Pattern.compile(
+            "/wp-(?:admin|includes)/css/[\\w.-]+\\.css\\?ver=(\\d+\\.\\d+(?:\\.\\d+)?)");
 
     private WordPressVersions() {
     }
@@ -56,6 +60,14 @@ final class WordPressVersions {
     /** "Version x.y" in {@code readme.html}; recent releases removed it, older ones still show it. */
     static Optional<String> fromReadme(String html) {
         return firstGroup(README_VERSION, html);
+    }
+
+    /**
+     * Version of core stylesheets on {@code wp-login.php}. Hardening plugins usually strip the
+     * generator tag and feed version but leave these alone.
+     */
+    static Optional<String> fromCoreAssets(String html) {
+        return firstGroup(CORE_ASSET_VERSION, html);
     }
 
     private static Optional<String> firstGroup(Pattern pattern, String text) {

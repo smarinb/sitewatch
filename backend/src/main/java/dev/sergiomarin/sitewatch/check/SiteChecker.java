@@ -9,9 +9,12 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 
 import javax.net.ssl.SSLException;
 import javax.net.ssl.SSLPeerUnverifiedException;
@@ -39,9 +42,12 @@ import org.springframework.stereotype.Component;
 public class SiteChecker {
 
     private static final String ACCEPT = "text/html,application/xhtml+xml;q=0.9,*/*;q=0.8";
+    static final Duration PROBE_TTL = Duration.ofHours(12);
 
     private final CloseableHttpClient client;
     private final int maxBodyBytes;
+    /** Hidden WordPress versions found by probing, per site folder. Bounded by the number of sites. */
+    private final Map<URI, ProbedVersion> probedVersions = new ConcurrentHashMap<>();
 
     public SiteChecker(CloseableHttpClient checkHttpClient, CheckerProperties properties) {
         this.client = checkHttpClient;
@@ -79,10 +85,23 @@ public class SiteChecker {
         if (version.isPresent() || !WordPressVersions.looksLikeWordPress(page.body(), page.link())) {
             return version.orElse(null);
         }
-        // WordPress with the generator tag removed: try the feed, then readme.html.
+        // WordPress with the version hidden. Probing takes extra requests (one of them to
+        // wp-login.php, which security plugins watch), so the answer is reused for a while.
         URI base = directoryOf(pageUri);
+        Instant now = Instant.now();
+        ProbedVersion cached = probedVersions.get(base);
+        if (cached != null && cached.probedAt().plus(PROBE_TTL).isAfter(now)) {
+            return cached.version();
+        }
+        String probed = probeHiddenVersion(base);
+        probedVersions.put(base, new ProbedVersion(probed, now));
+        return probed;
+    }
+
+    private String probeHiddenVersion(URI base) {
         return fetchText(base.resolve("feed/")).flatMap(WordPressVersions::fromFeed)
                 .or(() -> fetchText(base.resolve("readme.html")).flatMap(WordPressVersions::fromReadme))
+                .or(() -> fetchText(base.resolve("wp-login.php")).flatMap(WordPressVersions::fromCoreAssets))
                 .orElse(null);
     }
 
@@ -163,6 +182,9 @@ public class SiteChecker {
                     + Optional.ofNullable(protocol.getCause()).map(Throwable::getMessage).orElse(protocol.getMessage());
             default -> e.getClass().getSimpleName() + ": " + e.getMessage();
         };
+    }
+
+    private record ProbedVersion(String version, Instant probedAt) {
     }
 
     private record Page(int status, int responseTimeMs, String body, String link, Instant sslExpiresAt) {

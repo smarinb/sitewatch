@@ -38,4 +38,20 @@ class WordPressVersionsTest {
         assertThat(WordPressVersions.fromReadme("<br /> Version 4.9.8")).contains("4.9.8");
         assertThat(WordPressVersions.fromReadme("<h1>ReadMe</h1>")).isEmpty();
     }
+
+    @Test
+    void readmeIgnoresRequirementVersions() {
+        // Current readme.html lists requirements; none of these is the WordPress version.
+        assertThat(WordPressVersions.fromReadme("<li>PHP version 7.4 or greater.</li>")).isEmpty();
+        assertThat(WordPressVersions.fromReadme("<li>MySQL version <strong>8.0</strong></li>")).isEmpty();
+    }
+
+    @Test
+    void readsCoreAssetVersionsButNotPluginOnes() {
+        assertThat(WordPressVersions.fromCoreAssets(
+                "<link href='https://x.es/wp-admin/css/forms.min.css?ver=7.1.5' rel='stylesheet'>"))
+                .contains("7.1.5");
+        assertThat(WordPressVersions.fromCoreAssets(
+                "<link href='/wp-content/plugins/elementor/assets/css/frontend.min.css?ver=4.4.1'>")).isEmpty();
+    }
 }

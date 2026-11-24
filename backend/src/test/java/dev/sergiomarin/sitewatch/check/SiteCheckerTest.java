@@ -11,6 +11,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.net.ssl.SSLContext;
 
@@ -84,6 +85,25 @@ class SiteCheckerTest {
                         + "</channel></rss>");
 
         assertThat(checker(true).check(server.url("/blog/")).wpVersion()).isEqualTo("6.6.2");
+    }
+
+    @Test
+    void hardenedWordPressFallsBackToLoginPageAssetsAndCachesTheProbe() {
+        AtomicInteger loginRequests = new AtomicInteger();
+        server.page("/", 200, "<meta name=\"generator\" content=\"Elementor 4.4.1\">", Map.of("Link",
+                        "<" + server.url("/wp-json/") + ">; rel=\"https://api.w.org/\""))
+                .page("/feed/", 200, "<rss><channel><title>No generator here</title></channel></rss>")
+                .page("/readme.html", 200, "<li>PHP version 7.4 or greater.</li>")
+                .route("/wp-login.php", exchange -> {
+                    loginRequests.incrementAndGet();
+                    TestServer.respond(exchange, 200,
+                            "<link href='/wp-admin/css/forms.min.css?ver=7.1.5' rel='stylesheet'>", Map.of());
+                });
+        SiteChecker checker = checker(true);
+
+        assertThat(checker.check(server.url("/")).wpVersion()).isEqualTo("7.1.5");
+        assertThat(checker.check(server.url("/")).wpVersion()).isEqualTo("7.1.5");
+        assertThat(loginRequests).hasValue(1);
     }
 
     @Test
