@@ -26,3 +26,12 @@ management:
     health:
       probes:
         enabled: true
+
+sitewatch:
+  jwt:
+    # Base64 HMAC key, at least 32 bytes: openssl rand -base64 32
+    secret: ${JWT_SECRET}
+    ttl: ${JWT_TTL:PT24H}
+    issuer: sitewatch
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}

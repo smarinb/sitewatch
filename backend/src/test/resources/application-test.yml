@@ -1,0 +1,4 @@
+# Test-only key (not a real secret): 32 bytes of 0x01.
+sitewatch:
+  jwt:
+    secret: AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=
