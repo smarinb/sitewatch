@@ -19,15 +19,15 @@ Idioma de trabajo con el usuario: español. Código, commits y nombres en inglé
 ## Estado actual
 - [x] Esqueleto: backend generado con Spring Initializr, `application.yml` configurable por variables de entorno (`DB_URL`, `DB_USER`, `DB_PASSWORD`), migración V1 (`app_user`, `site`, `site_check`), `SecurityConfig` (solo es público `/actuator/health/**` e `/actuator/info`), Dockerfile multi-stage con usuario no root, `docker-compose.yml` para desarrollo (db + api), CI.
 - [x] Frontend: plantilla Vite react-ts sin modificar.
-- [ ] **Siguiente:** registro y login con JWT y CRUD de sitios por usuario (cada usuario solo ve sus sitios).
-- [ ] Checker programado: uptime, tiempo de respuesta, SSL y versión de WordPress (meta generator, `/wp-json`, `readme.html`).
+- [x] Registro y login con JWT (`/api/auth/register`, `/login`, `/me`) y CRUD de sitios por usuario (`/api/sites`; un sitio ajeno responde 404). Secreto en `JWT_SECRET` (Base64, ≥32 bytes, sin valor por defecto); los tests usan el perfil `test` y heredan de `IntegrationTest`.
+- [ ] **Siguiente:** checker programado: uptime, tiempo de respuesta, SSL y versión de WordPress (meta generator, `/wp-json`, `readme.html`).
 - [ ] Alertas por email y Telegram (cambio de estado up→down, SSL a menos de 14 días de caducar).
 - [ ] Panel React: login, lista de sitios con estado, detalle con histórico y gráficas.
 - [ ] Terraform + despliegue continuo (GitHub Actions → GHCR → EC2).
 - [ ] Prometheus + Grafana.
 - [ ] Fase 2: plugins vulnerables vía API de WPScan y página de estado pública.
 
-El repo de GitHub `smarinb/sitewatch` todavía no existe y no hay commits. Pide confirmación antes de hacer push o crear recursos en AWS o Cloudflare.
+Repo público: https://github.com/smarinb/sitewatch. Pide confirmación antes de hacer push o crear recursos en AWS o Cloudflare.
 
 ## Reglas de trabajo
 - Antes de `terraform apply` o de cualquier acción que cree recursos con coste, enseña el `plan` y espera la aprobación.
@@ -37,8 +37,9 @@ El repo de GitHub `smarinb/sitewatch` todavía no existe y no hay commits. Pide 
 
 ## Comandos
 ```bash
+cp .env.example .env                     # y genera JWT_SECRET (openssl rand -base64 32)
 docker compose up -d db                  # PostgreSQL local
-cd backend && ./mvnw spring-boot:run     # API en :8080
+cd backend && set -a && . ../.env && set +a && ./mvnw spring-boot:run   # API en :8080
 cd backend && ./mvnw verify              # build + tests (Testcontainers necesita Docker)
 cd frontend && npm install && npm run dev
 cd frontend && npm run lint && npm run build
