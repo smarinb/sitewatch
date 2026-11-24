@@ -1,0 +1,53 @@
+export type SiteStatus = 'UNKNOWN' | 'UP' | 'DOWN'
+
+export interface Site {
+  id: number
+  name: string
+  url: string
+  checkIntervalMinutes: number
+  active: boolean
+  status: SiteStatus
+  lastCheckedAt: string | null
+  createdAt: string
+}
+
+/** Body of POST and PUT /api/sites. PUT replaces the site, so send every field. */
+export interface SiteInput {
+  name: string
+  url: string
+  checkIntervalMinutes: number
+  active: boolean
+}
+
+export interface Check {
+  checkedAt: string
+  up: boolean
+  httpStatus: number | null
+  responseTimeMs: number | null
+  sslExpiresAt: string | null
+  wpVersion: string | null
+  error: string | null
+}
+
+export interface LatestCheck extends Check {
+  siteId: number
+}
+
+export interface TokenResponse {
+  accessToken: string
+  tokenType: string
+  expiresAt: string
+}
+
+export interface Credentials {
+  email: string
+  password: string
+}
+
+export interface NotificationSettings {
+  emailAlerts: boolean
+  telegramChatId: string | null
+}
+
+/** Per channel: "sent", "failed", "disabled" or "not configured on the server". */
+export type TestAlertResult = Record<string, string>
