@@ -10,6 +10,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import dev.sergiomarin.sitewatch.alert.AlertDispatcher;
+import dev.sergiomarin.sitewatch.alert.AlertEvent;
 import dev.sergiomarin.sitewatch.site.SiteRepository;
 import dev.sergiomarin.sitewatch.site.SiteRepository.DueSite;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -29,14 +31,16 @@ public class CheckRunner {
     private final SiteChecker checker;
     private final CheckRecorder recorder;
     private final CheckerProperties properties;
+    private final AlertDispatcher alerts;
     private final MeterRegistry meters;
 
     public CheckRunner(SiteRepository sites, SiteChecker checker, CheckRecorder recorder,
-            CheckerProperties properties, MeterRegistry meters) {
+            CheckerProperties properties, AlertDispatcher alerts, MeterRegistry meters) {
         this.sites = sites;
         this.checker = checker;
         this.recorder = recorder;
         this.properties = properties;
+        this.alerts = alerts;
         this.meters = meters;
     }
 
@@ -65,19 +69,23 @@ public class CheckRunner {
 
     private void checkAndRecord(DueSite site) {
         Instant checkedAt = Instant.now();
+        List<AlertEvent> events;
         try {
             Timer.Sample sample = Timer.start(meters);
             CheckResult result = checker.check(site.getUrl());
             sample.stop(meters.timer("sitewatch.checks", "outcome", result.up() ? "up" : "down"));
-            recorder.record(site.getId(), checkedAt, result);
+            events = recorder.record(site.getId(), checkedAt, result);
         } catch (RuntimeException e) {
             log.error("Check of site {} failed unexpectedly", site.getId(), e);
             try {
-                // Still move the schedule forward so a broken site is not retried every tick.
-                recorder.record(site.getId(), checkedAt, CheckResult.failure("Internal error during check"));
+                // A bug on our side is not the site's fault: no result, no alert, but move the
+                // schedule forward so the site is not retried on every tick.
+                recorder.skip(site.getId(), checkedAt);
             } catch (RuntimeException ignored) {
-                log.warn("Could not record failed check of site {}", site.getId());
+                log.warn("Could not reschedule site {} after a failed check", site.getId());
             }
+            return;
         }
+        alerts.dispatch(events);
     }
 }

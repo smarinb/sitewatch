@@ -22,6 +22,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.springframework.util.unit.DataSize;
 
+import dev.sergiomarin.sitewatch.testsupport.TestServer;
+
 /** Real HTTP(S) round trips against a local server; no Spring context or Docker needed. */
 class SiteCheckerTest {
 

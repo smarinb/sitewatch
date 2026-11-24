@@ -5,7 +5,10 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 
-/** Triggers a round of checks every tick. Disabled with {@code sitewatch.checker.enabled=false}. */
+/**
+ * Triggers a round of checks every tick.
+ * Disabled with {@code sitewatch.checker.enabled=false}.
+ */
 @Configuration
 @EnableScheduling
 @ConditionalOnBooleanProperty(name = "sitewatch.checker.enabled", matchIfMissing = true)

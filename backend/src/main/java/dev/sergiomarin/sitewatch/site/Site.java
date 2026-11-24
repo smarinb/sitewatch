@@ -4,6 +4,8 @@ import java.time.Instant;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -41,9 +43,21 @@ public class Site {
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
-    /** Written only by the checker. */
-    @Column(name = "last_checked_at", insertable = false, updatable = false)
+    @Column(name = "last_checked_at")
     private Instant lastCheckedAt;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 10)
+    private SiteStatus status = SiteStatus.UNKNOWN;
+
+    @Column(name = "consecutive_failures", nullable = false)
+    private int consecutiveFailures;
+
+    @Column(name = "down_since")
+    private Instant downSince;
+
+    @Column(name = "ssl_alerted_expiry")
+    private Instant sslAlertedExpiry;
 
     protected Site() {
     }
@@ -55,6 +69,10 @@ public class Site {
     }
 
     public void update(String name, String url, int checkIntervalMinutes, boolean active) {
+        if (this.url != null && !this.url.equals(url)) {
+            // A different URL is a different site: forget its history and check it right away.
+            applyCheck(null, MonitorState.INITIAL);
+        }
         this.name = name;
         this.url = url;
         this.checkIntervalMinutes = checkIntervalMinutes;
@@ -91,5 +109,22 @@ public class Site {
 
     public Instant getLastCheckedAt() {
         return lastCheckedAt;
+    }
+
+    public SiteStatus getStatus() {
+        return status;
+    }
+
+    public MonitorState monitorState() {
+        return new MonitorState(status, consecutiveFailures, downSince, sslAlertedExpiry);
+    }
+
+    /** Records that a check ran and stores the resulting alert state. */
+    public void applyCheck(Instant checkedAt, MonitorState state) {
+        this.lastCheckedAt = checkedAt;
+        this.status = state.status();
+        this.consecutiveFailures = state.consecutiveFailures();
+        this.downSince = state.downSince();
+        this.sslAlertedExpiry = state.sslAlertedExpiry();
     }
 }

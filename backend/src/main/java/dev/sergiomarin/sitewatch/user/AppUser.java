@@ -26,6 +26,12 @@ public class AppUser {
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
+    @Column(name = "email_alerts", nullable = false)
+    private boolean emailAlerts = true;
+
+    @Column(name = "telegram_chat_id", length = 32)
+    private String telegramChatId;
+
     protected AppUser() {
     }
 
@@ -49,5 +55,18 @@ public class AppUser {
 
     public Instant getCreatedAt() {
         return createdAt;
+    }
+
+    public boolean isEmailAlerts() {
+        return emailAlerts;
+    }
+
+    public String getTelegramChatId() {
+        return telegramChatId;
+    }
+
+    public void updateNotifications(boolean emailAlerts, String telegramChatId) {
+        this.emailAlerts = emailAlerts;
+        this.telegramChatId = telegramChatId;
     }
 }

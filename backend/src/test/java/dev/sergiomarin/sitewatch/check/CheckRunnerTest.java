@@ -20,6 +20,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import com.jayway.jsonpath.JsonPath;
 
 import dev.sergiomarin.sitewatch.IntegrationTest;
+import dev.sergiomarin.sitewatch.testsupport.TestServer;
 
 class CheckRunnerTest extends IntegrationTest {
 

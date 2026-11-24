@@ -1,4 +1,4 @@
-package dev.sergiomarin.sitewatch.check;
+package dev.sergiomarin.sitewatch.testsupport;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -23,7 +23,7 @@ import com.sun.net.httpserver.HttpsConfigurator;
 import com.sun.net.httpserver.HttpsServer;
 
 /** Tiny HTTP(S) server on 127.0.0.1 for exercising real checks. */
-final class TestServer implements AutoCloseable {
+public final class TestServer implements AutoCloseable {
 
     private static final char[] PASSWORD = "changeit".toCharArray();
 
@@ -34,35 +34,35 @@ final class TestServer implements AutoCloseable {
         server.start();
     }
 
-    static TestServer http() throws IOException {
+    public static TestServer http() throws IOException {
         return new TestServer(HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 0));
     }
 
-    static TestServer https(SSLContext serverContext) throws IOException {
+    public static TestServer https(SSLContext serverContext) throws IOException {
         HttpsServer server = HttpsServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 0);
         server.setHttpsConfigurator(new HttpsConfigurator(serverContext));
         return new TestServer(server);
     }
 
-    TestServer route(String path, HttpHandler handler) {
+    public TestServer route(String path, HttpHandler handler) {
         server.createContext(path, handler);
         return this;
     }
 
-    TestServer page(String path, int status, String body) {
+    public TestServer page(String path, int status, String body) {
         return page(path, status, body, Map.of());
     }
 
-    TestServer page(String path, int status, String body, Map<String, String> headers) {
+    public TestServer page(String path, int status, String body, Map<String, String> headers) {
         return route(path, exchange -> respond(exchange, status, body, headers));
     }
 
-    String url(String path) {
+    public String url(String path) {
         String scheme = server instanceof HttpsServer ? "https" : "http";
         return scheme + "://127.0.0.1:" + server.getAddress().getPort() + path;
     }
 
-    static void respond(HttpExchange exchange, int status, String body, Map<String, String> headers)
+    public static void respond(HttpExchange exchange, int status, String body, Map<String, String> headers)
             throws IOException {
         try (exchange) {
             headers.forEach((name, value) -> exchange.getResponseHeaders().add(name, value));
@@ -81,9 +81,9 @@ final class TestServer implements AutoCloseable {
     }
 
     /** A self-signed certificate for 127.0.0.1/localhost, made with the JDK's keytool. */
-    record SelfSigned(SSLContext serverContext, SSLContext trustingClientContext) {
+    public record SelfSigned(SSLContext serverContext, SSLContext trustingClientContext) {
 
-        static SelfSigned create(Path dir, int validityDays) throws Exception {
+        public static SelfSigned create(Path dir, int validityDays) throws Exception {
             Path keystore = dir.resolve("server.p12");
             Path keytool = Path.of(System.getProperty("java.home"), "bin", "keytool");
             Process process = new ProcessBuilder(List.of(keytool.toString(), "-genkeypair", "-alias", "server",

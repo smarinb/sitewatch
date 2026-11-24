@@ -3,10 +3,7 @@ package dev.sergiomarin.sitewatch.site;
 import java.util.List;
 import java.util.Optional;
 
-import java.time.Instant;
-
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 
 public interface SiteRepository extends JpaRepository<Site, Long> {
@@ -30,10 +27,6 @@ public interface SiteRepository extends JpaRepository<Site, Long> {
             LIMIT :limit
             """, nativeQuery = true)
     List<DueSite> findDueForCheck(int limit);
-
-    @Modifying
-    @Query("UPDATE Site s SET s.lastCheckedAt = :checkedAt WHERE s.id = :id")
-    int markChecked(Long id, Instant checkedAt);
 
     interface DueSite {
         Long getId();
