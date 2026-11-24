@@ -1,0 +1,15 @@
+{
+	# TLS uses the Cloudflare origin certificate below. Never try to get one from a public CA.
+	auto_https off
+}
+
+{$API_HOSTNAME}:443 {
+	tls /certs/origin.pem /certs/origin.key
+
+	# Metrics are for the monitoring stack on this host, not for the internet.
+	@internal path /actuator/prometheus /actuator/prometheus/*
+	respond @internal 404
+
+	encode zstd gzip
+	reverse_proxy api:8080
+}

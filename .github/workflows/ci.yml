@@ -49,3 +49,17 @@ jobs:
       - run: terraform fmt -check -recursive
       - run: terraform init -backend=false
       - run: terraform validate
+
+  deploy-config:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: ShellCheck the deploy script
+        run: shellcheck -S style deploy/deploy.sh
+      - name: Validate the production compose file
+        run: IMAGE_TAG=ci DB_PASSWORD=ci docker compose -f deploy/docker-compose.prod.yml config -q
+      - name: Reject malformed arguments before touching anything
+        run: |
+          for args in "abc tag" "0000000000000000000000000000000000000000 ../etc" "0000000000000000000000000000000000000000 a;rm"; do
+            if bash deploy/deploy.sh $args; then echo "accepted: $args"; exit 1; fi
+          done

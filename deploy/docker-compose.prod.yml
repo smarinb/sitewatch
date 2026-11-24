@@ -1,0 +1,76 @@
+# Production stack: PostgreSQL, the API and a TLS proxy, tuned for a 1 GB server.
+# Deployed by deploy.sh (run by CI through SSM). Needs, in $SITEWATCH_DIR (default /opt/sitewatch):
+#   config.env   non-secret settings         secrets.env   secrets from SSM (also passed as --env-file)
+#   certs/origin.pem and certs/origin.key    the Cloudflare origin certificate
+name: sitewatch
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: sitewatch
+      POSTGRES_USER: sitewatch
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is not set}
+    # Small buffers: the whole host has 1 GB, shared with the JVM.
+    command:
+      - postgres
+      - -c
+      - shared_buffers=48MB
+      - -c
+      - effective_cache_size=192MB
+      - -c
+      - work_mem=2MB
+      - -c
+      - maintenance_work_mem=32MB
+      - -c
+      - max_connections=20
+      - -c
+      - wal_compression=on
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sitewatch -d sitewatch"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    mem_limit: 192m
+
+  api:
+    image: ghcr.io/smarinb/sitewatch-api:${IMAGE_TAG:?IMAGE_TAG is not set}
+    restart: unless-stopped
+    env_file:
+      - ${SITEWATCH_DIR:-/opt/sitewatch}/config.env
+      - ${SITEWATCH_DIR:-/opt/sitewatch}/secrets.env
+    environment:
+      DB_URL: jdbc:postgresql://db:5432/sitewatch
+      DB_USER: sitewatch
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/actuator/health/readiness | grep -q UP"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      # The JVM needs a while to start on a t3.micro.
+      start_period: 90s
+    mem_limit: 450m
+
+  proxy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      API_HOSTNAME: ${API_HOSTNAME:-api.monitor.sergiomarin.dev}
+    ports:
+      - "${PROXY_PORT:-443}:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ${SITEWATCH_DIR:-/opt/sitewatch}/certs:/certs:ro
+    depends_on:
+      api:
+        condition: service_healthy
+    mem_limit: 64m
+
+volumes:
+  pgdata:
