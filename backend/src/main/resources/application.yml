@@ -35,3 +35,13 @@ sitewatch:
     issuer: sitewatch
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
+  checker:
+    enabled: ${CHECKER_ENABLED:true}
+    tick: 30s
+    batch-size: 100
+    max-concurrent: 8
+    connect-timeout: 5s
+    response-timeout: 10s
+    max-body-bytes: 512KB
+    user-agent: "SitewatchBot/1.0 (+https://monitor.sergiomarin.dev)"
+    allow-private-addresses: false

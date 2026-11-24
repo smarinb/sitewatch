@@ -2,3 +2,9 @@
 sitewatch:
   jwt:
     secret: AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=
+  checker:
+    # Tests drive CheckRunner directly and serve sites from localhost.
+    enabled: false
+    allow-private-addresses: true
+    connect-timeout: 2s
+    response-timeout: 2s
