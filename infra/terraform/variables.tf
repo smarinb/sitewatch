@@ -42,6 +42,22 @@ variable "ssh_public_key_path" {
   default     = "~/.ssh/id_ed25519.pub"
 }
 
+variable "existing_eip_allocation_id" {
+  description = <<-EOT
+    Allocation id (eipalloc-...) of an Elastic IP you already own, to use instead of creating a new one.
+    Terraform only associates it with the instance and never manages it, so `terraform destroy` leaves the
+    address allocated and yours. If it is attached to another instance, that instance loses it.
+    Leave empty to create a new one.
+  EOT
+  type        = string
+  default     = null
+
+  validation {
+    condition     = var.existing_eip_allocation_id == null || can(regex("^eipalloc-[0-9a-f]+$", var.existing_eip_allocation_id))
+    error_message = "Must look like eipalloc-0123456789abcdef0."
+  }
+}
+
 variable "domain" {
   description = "Public hostname of the panel. It is also the SES sending domain and the allowed CORS origin."
   type        = string

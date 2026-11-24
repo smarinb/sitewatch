@@ -98,7 +98,10 @@ resource "aws_instance" "api" {
   tags = { Name = var.name }
 }
 
+# Either a new Elastic IP, or one you already own (see existing_eip_allocation_id).
 resource "aws_eip" "api" {
+  count = var.existing_eip_allocation_id == null ? 1 : 0
+
   domain = "vpc"
 
   tags = { Name = var.name }
@@ -106,7 +109,23 @@ resource "aws_eip" "api" {
   depends_on = [aws_internet_gateway.main]
 }
 
+data "aws_eip" "existing" {
+  count = var.existing_eip_allocation_id == null ? 0 : 1
+
+  id = var.existing_eip_allocation_id
+}
+
+locals {
+  eip_allocation_id = var.existing_eip_allocation_id != null ? var.existing_eip_allocation_id : aws_eip.api[0].id
+  public_ip         = var.existing_eip_allocation_id != null ? data.aws_eip.existing[0].public_ip : aws_eip.api[0].public_ip
+}
+
 resource "aws_eip_association" "api" {
   instance_id   = aws_instance.api.id
-  allocation_id = aws_eip.api.id
+  allocation_id = local.eip_allocation_id
+
+  # Takes the address from whatever instance has it now.
+  allow_reassociation = true
+
+  depends_on = [aws_internet_gateway.main]
 }

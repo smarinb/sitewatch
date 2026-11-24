@@ -7,7 +7,7 @@ Crea en AWS el servidor de Sitewatch y todo lo que necesita para enviar emails. 
 |---|---|
 | VPC propia, subred pública y gateway | Aislada de cualquier otro proyecto de la cuenta |
 | EC2 `t3.micro`, Ubuntu 24.04, disco gp3 de 20 GB cifrado | Servidor de la API y de PostgreSQL |
-| Elastic IP | IP fija a la que apuntará `api.monitor.sergiomarin.dev` |
+| Elastic IP | IP fija a la que apuntará `api.monitor.sergiomarin.dev`. Nueva, o una que ya tengas con `existing_eip_allocation_id` |
 | Security group | **80/443 solo desde los rangos de Cloudflare** (se descargan de cloudflare.com), **SSH solo desde tu IP** |
 | cloud-init | Swap de 2 GB, Docker y Compose, rotación de logs y lectura de secretos desde SSM |
 | Rol de instancia | Solo puede leer sus parámetros de SSM; permite Session Manager como alternativa a SSH |
@@ -21,6 +21,7 @@ Crea en AWS el servidor de Sitewatch y todo lo que necesita para enviar emails. 
 - **IMDSv2 obligatorio con un solo salto:** los contenedores no pueden pedir las credenciales de la instancia.
 - **Secretos en SSM, nunca en el repo ni en una imagen.** El nombre del parámetro es el de la variable de entorno (`/sitewatch/env/JWT_SECRET`). `TELEGRAM_BOT_TOKEN` no lo gestiona Terraform, para que no acabe en el estado (ver abajo).
 - **El estado contiene secretos** (contraseñas generadas y la clave SMTP). Es local y está en `.gitignore`. Si lo pierdes, Terraform deja de conocer los recursos. Antes de trabajar en equipo o desde otra máquina habría que moverlo a un backend S3 cifrado.
+- **Reutilizar una Elastic IP existente** (`existing_eip_allocation_id`): Terraform solo la asocia a la instancia, con `allow_reassociation`, y no la gestiona. Se la quita a la instancia que la tuviera, y un `terraform destroy` no la libera: queda tuya y sin asociar (sigue facturando hasta que la asocies o la liberes).
 - **Los rangos de Cloudflare se leen al hacer `plan`.** Si Cloudflare los cambia, el siguiente `plan` lo muestra como diferencia.
 
 ## Coste aproximado
@@ -30,7 +31,7 @@ Precios de lista en us-east-1, a verificar con la calculadora de AWS:
 |---|---|
 | EC2 `t3.micro` (0,0104 USD/h) | ~7,6 |
 | Disco gp3 de 20 GB | ~1,6 |
-| IPv4 pública (0,005 USD/h; AWS la cobra aunque esté asociada) | ~3,7 |
+| IPv4 pública (0,005 USD/h; AWS la cobra aunque esté asociada). Si reutilizas una Elastic IP que ya pagabas, no suma | ~3,7 |
 | SES (0,10 USD por 1.000 emails; en sandbox el máximo son 200 al día) | < 1 |
 | **Total** | **~13** |
 

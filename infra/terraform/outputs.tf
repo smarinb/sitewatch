@@ -1,6 +1,6 @@
 output "public_ip" {
   description = "Elastic IP of the instance. Point api.<domain> at it (the Cloudflare step)."
-  value       = aws_eip.api.public_ip
+  value       = local.public_ip
 }
 
 output "instance_id" {
@@ -8,7 +8,7 @@ output "instance_id" {
 }
 
 output "ssh_command" {
-  value = "ssh ubuntu@${aws_eip.api.public_ip}"
+  value = "ssh ubuntu@${local.public_ip}"
 }
 
 output "session_manager_command" {
