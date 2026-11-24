@@ -18,14 +18,15 @@ Idioma de trabajo con el usuario: español. Código, commits y nombres en inglé
 
 ## Estado actual
 - [x] Esqueleto: backend generado con Spring Initializr, `application.yml` configurable por variables de entorno (`DB_URL`, `DB_USER`, `DB_PASSWORD`), migración V1 (`app_user`, `site`, `site_check`), `SecurityConfig` (solo es público `/actuator/health/**` e `/actuator/info`), Dockerfile multi-stage con usuario no root, `docker-compose.yml` para desarrollo (db + api), CI.
-- [x] Frontend: plantilla Vite react-ts sin modificar.
+- [x] Frontend (plantilla de Vite sustituida): ver el bloque del panel más abajo.
 - [x] Registro y login con JWT (`/api/auth/register`, `/login`, `/me`) y CRUD de sitios por usuario (`/api/sites`; un sitio ajeno responde 404). Secreto en `JWT_SECRET` (Base64, ≥32 bytes, sin valor por defecto); los tests usan el perfil `test` y heredan de `IntegrationTest`.
 - [x] Checker programado (paquete `check`): `CheckScheduler` (cada 30 s) → `CheckRunner` (hilos virtuales, máx. 8) → `SiteChecker` (Apache HttpClient 5) → `CheckRecorder`. Migración V2 añade `site.last_checked_at`. Versión de WP: meta generator; si el sitio parece WP pero la oculta, `feed/`, `readme.html` y `?ver=` de los CSS del núcleo en `wp-login.php`, con caché de 12 h por sitio (`/wp-json` no expone la versión; solo sirve como indicio vía la cabecera `Link: api.w.org`). Histórico en `GET /api/sites/{id}/checks`.
   - **SSRF:** `GuardedDnsResolver` rechaza hosts que resuelvan a direcciones no públicas (también en redirecciones). Los tests lo desactivan con `sitewatch.checker.allow-private-addresses: true` en el perfil `test`; en producción debe quedar en `false`.
 - [x] Alertas (paquete `alert`). Migración V3: `site.status`/`consecutive_failures`/`down_since`/`ssl_alerted_expiry` y `app_user.email_alerts`/`telegram_chat_id`. `AlertEvaluator` es una función pura: DOWN tras 2 fallos seguidos, RECOVERED con la duración de la caída, SSL una vez por certificado con menos de 14 días. `CheckRecorder` devuelve los eventos y `CheckRunner` los envía después del commit con `AlertDispatcher`, que recorre los `AlertChannel` (email y Telegram). SMTP mediante `SPRING_MAIL_*` (en dev, Mailpit en compose); Telegram con `TELEGRAM_BOT_TOKEN` y el chat id de cada usuario. Ajustes en `/api/me/notifications` (+ `/test`). Los textos de las alertas están en inglés.
 - [x] Retención: los chequeos de más de 90 días se borran cada noche (`sitewatch.checker.retention`).
-- [ ] **Siguiente:** panel React: login, lista de sitios con estado, detalle con histórico y gráficas.
-- [ ] Terraform + despliegue continuo (GitHub Actions → GHCR → EC2).
+- [x] Panel React (`frontend/`): login/registro, lista de sitios con estado, detalle (uptime, media y p95, SSL, WordPress, gráfica de tiempo de respuesta con rango 1 h / 6 h / 24 h) y ajustes de alertas. Cliente de API tipado, JWT en `localStorage`, `react-router`, gráfica en SVG propio (sin librería) con teclado y vista de tabla, tema claro/oscuro. UI en inglés. Detalles en `frontend/README.md`. Backend: `GET /api/checks/latest` y `since` en el histórico. 74 tests (Vitest + Testing Library); `oxlint` y `tsc` sin avisos.
+- [ ] **Siguiente:** Terraform + despliegue (el panel va a Cloudflare Pages con `VITE_API_URL`; la API necesita `CORS_ALLOWED_ORIGINS=https://monitor.sergiomarin.dev`, SMTP real y `TELEGRAM_BOT_TOKEN`).
+- [ ] Despliegue continuo (GitHub Actions → GHCR → EC2) y Pages.
 - [ ] Prometheus + Grafana.
 - [ ] Fase 2: plugins vulnerables vía API de WPScan y página de estado pública.
 
@@ -44,7 +45,7 @@ docker compose up -d db                  # PostgreSQL local
 cd backend && set -a && . ../.env && set +a && ./mvnw spring-boot:run   # API en :8080
 cd backend && ./mvnw verify              # build + tests (Testcontainers necesita Docker)
 cd frontend && npm install && npm run dev
-cd frontend && npm run lint && npm run build
+cd frontend && npm run lint && npm test && npm run build
 ```
 
 ## Entorno de desarrollo (WSL2 Ubuntu)

@@ -25,13 +25,20 @@ Monitorización de sitios web y WordPress: uptime, tiempo de respuesta, caducida
                                                   DNS con protección SSRF) ──► sitios monitorizados
 ```
 
+## Capturas
+| Lista de sitios | Detalle con histórico |
+|---|---|
+| ![Lista de sitios](docs/screenshots/dashboard.png) | ![Detalle de un sitio](docs/screenshots/detail.png) |
+
+*Datos de demostración. La caída de 35 min se dibuja como una banda; el tema oscuro y el móvil también están cubiertos ([captura oscura](docs/screenshots/detail-dark.png)).*
+
 ## Desarrollo local
 ```bash
 cp .env.example .env                                   # y rellena JWT_SECRET:
 sed -i "s|^JWT_SECRET=.*|JWT_SECRET=$(openssl rand -base64 32)|" .env
 docker compose up -d db                                # PostgreSQL
 cd backend && set -a && . ../.env && set +a && ./mvnw spring-boot:run
-cd frontend && npm install && npm run dev
+cd frontend && npm install && npm run dev            # http://localhost:5173
 ```
 Health check: http://localhost:8080/actuator/health
 
@@ -48,7 +55,8 @@ Autenticación stateless con JWT (HS256). Registro y login devuelven el token; e
 | `GET` | `/api/sites/{id}` | Detalle de un sitio |
 | `PUT` | `/api/sites/{id}` | Reemplaza un sitio |
 | `DELETE` | `/api/sites/{id}` | Borra un sitio |
-| `GET` | `/api/sites/{id}/checks?limit=50` | Histórico de chequeos, del más reciente al más antiguo (`limit` 1–500) |
+| `GET` | `/api/sites/{id}/checks?limit=50&since=<ISO>` | Histórico de chequeos, del más reciente al más antiguo (`limit` 1–500; `since` filtra por fecha) |
+| `GET` | `/api/checks/latest` | Último chequeo de cada sitio, para la lista del panel |
 | `GET` / `PUT` | `/api/me/notifications` | Canales de alerta: `{"emailAlerts": true, "telegramChatId": "123456789"}` |
 | `POST` | `/api/me/notifications/test` | Envía una alerta de prueba e indica el resultado por canal |
 
@@ -93,7 +101,7 @@ El estado de cada sitio (`UNKNOWN`, `UP` o `DOWN`) se guarda en la tabla `site`,
 - [x] CRUD de sitios por usuario
 - [x] Checker programado: uptime, tiempo de respuesta, SSL, versión de WordPress
 - [x] Alertas (email, Telegram)
-- [ ] Panel React con estado e históricos
+- [x] Panel React: login, lista de sitios, detalle con gráfica de tiempo de respuesta y ajustes de alertas
 - [ ] Terraform + despliegue continuo a EC2
 - [ ] Prometheus + Grafana
 - [ ] Fase 2: plugins vulnerables (WPScan), página de estado pública
