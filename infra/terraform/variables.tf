@@ -85,3 +85,23 @@ variable "monthly_budget_usd" {
   type        = number
   default     = 20
 }
+
+variable "cloudflare_zone_id" {
+  description = "Id of the Cloudflare zone that holds the domain (Cloudflare dashboard, zone overview, right column)."
+  type        = string
+
+  validation {
+    condition     = can(regex("^[0-9a-f]{32}$", var.cloudflare_zone_id))
+    error_message = "Must be a 32-character hexadecimal id."
+  }
+}
+
+variable "cloudflare_account_id" {
+  description = "Id of the Cloudflare account, needed for Pages."
+  type        = string
+
+  validation {
+    condition     = can(regex("^[0-9a-f]{32}$", var.cloudflare_account_id))
+    error_message = "Must be a 32-character hexadecimal id."
+  }
+}

@@ -48,3 +48,37 @@ resource "aws_iam_user_policy" "smtp_send" {
 resource "aws_iam_access_key" "smtp" {
   user = aws_iam_user.smtp.name
 }
+
+# The records that make SES trust the domain. Stable keys, because the DKIM tokens are only known after SES creates them.
+locals {
+  ses_dns_records = merge(
+    {
+      for i in range(3) : "dkim-${i}" => {
+        type     = "CNAME"
+        name     = "${aws_sesv2_email_identity.domain.dkim_signing_attributes[0].tokens[i]}._domainkey.${var.domain}"
+        value    = "${aws_sesv2_email_identity.domain.dkim_signing_attributes[0].tokens[i]}.dkim.amazonses.com"
+        priority = null
+      }
+    },
+    {
+      mail-from-mx = {
+        type     = "MX"
+        name     = "${var.mail_from_subdomain}.${var.domain}"
+        value    = "feedback-smtp.${var.region}.amazonses.com"
+        priority = 10
+      }
+      mail-from-spf = {
+        type     = "TXT"
+        name     = "${var.mail_from_subdomain}.${var.domain}"
+        value    = "v=spf1 include:amazonses.com ~all"
+        priority = null
+      }
+      dmarc = {
+        type     = "TXT"
+        name     = "_dmarc.${var.domain}"
+        value    = "v=DMARC1; p=none;"
+        priority = null
+      }
+    },
+  )
+}

@@ -1,6 +1,6 @@
 # Infraestructura (Terraform)
 
-Crea en AWS el servidor de Sitewatch y todo lo que necesita para enviar emails. **Todavía no despliega la aplicación**: eso lo hace el CI en el siguiente bloque. El DNS de Cloudflare y Cloudflare Pages también quedan para el paso siguiente.
+Crea en AWS el servidor de Sitewatch y todo lo que necesita para enviar emails, y en Cloudflare los registros DNS y el proyecto de Pages. **Todavía no despliega la aplicación**: eso lo hace el CI en el siguiente bloque.
 
 ## Qué crea
 | Recurso | Para qué |
@@ -14,6 +14,9 @@ Crea en AWS el servidor de Sitewatch y todo lo que necesita para enviar emails. 
 | SES: dominio `monitor.sergiomarin.dev` | Verificado con DKIM y dominio MAIL FROM propio (`mail.monitor…`) para que SPF alinee |
 | Usuario IAM de SMTP | Solo puede enviar desde `alerts@monitor.sergiomarin.dev` |
 | SSM Parameter Store (SecureString) | `JWT_SECRET`, `DB_PASSWORD` y credenciales SMTP, generados por Terraform |
+| Cloudflare: `api.monitor…` | Registro A con proxy hacia la Elastic IP |
+| Cloudflare: registros de SES | 3 CNAME de DKIM, MX y TXT (SPF) del dominio MAIL FROM, y DMARC |
+| Cloudflare Pages | Proyecto `sitewatch` (subida directa desde el CI), dominio `monitor.sergiomarin.dev` y su CNAME |
 | AWS Budgets | Aviso al 80 % del gasto real y al 100 % del previsto, filtrado por la etiqueta `Project=sitewatch` |
 
 ## Decisiones
@@ -36,6 +39,16 @@ Precios de lista en us-east-1, a verificar con la calculadora de AWS:
 | **Total** | **~13** |
 
 El presupuesto está en 20 USD (`monthly_budget_usd`) y solo cuenta los recursos con la etiqueta `Project=sitewatch`. La etiqueta de costes tarda hasta 24 h en empezar a registrar datos.
+
+## Cloudflare
+Solo **añade** registros y un proyecto: los registros que ya tenga la zona (la web, el correo, Resend) no se gestionan aquí y nunca se tocan. El token de API va en la variable `CLOUDFLARE_API_TOKEN`, nunca en el repo ni en `terraform.tfvars`:
+
+```bash
+set -a; . ~/.config/sitewatch/cloudflare.env; set +a   # fichero 600 con CLOUDFLARE_API_TOKEN=...
+```
+Permisos del token: zona `sergiomarin.dev` con DNS (editar), Zona (leer), Configuración de zona (editar) y Reglas de configuración (editar); cuenta con Cloudflare Pages (editar). El id de la zona y de la cuenta van en `terraform.tfvars`.
+
+Todavía **no** se configura el modo TLS «Full (strict)» ni el certificado de origen: se hace junto con el proxy de la EC2 en el bloque de despliegue, para no dejar `api.monitor` devolviendo un 526 mientras no haya nada que servir. Y será solo para `api.monitor` (regla de configuración), sin cambiar el modo de toda la zona, que usa también tu web.
 
 ## Uso
 ```bash

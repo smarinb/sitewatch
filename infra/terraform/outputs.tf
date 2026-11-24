@@ -16,39 +16,23 @@ output "session_manager_command" {
   value       = "aws ssm start-session --target ${aws_instance.api.id}"
 }
 
-# The DNS records SES needs, ready for the Cloudflare step.
+# The DNS records SES needs. They are created in Cloudflare (cloudflare.tf); the output is for reference.
 output "ses_dns_records" {
-  description = "Records to create in DNS so SES can verify the domain and sign mail with DKIM."
-  value = concat(
-    [
-      for token in aws_sesv2_email_identity.domain.dkim_signing_attributes[0].tokens : {
-        type     = "CNAME"
-        name     = "${token}._domainkey.${var.domain}"
-        value    = "${token}.dkim.amazonses.com"
-        priority = null
-      }
-    ],
-    [
-      {
-        type     = "MX"
-        name     = "${var.mail_from_subdomain}.${var.domain}"
-        value    = "feedback-smtp.${var.region}.amazonses.com"
-        priority = 10
-      },
-      {
-        type     = "TXT"
-        name     = "${var.mail_from_subdomain}.${var.domain}"
-        value    = "v=spf1 include:amazonses.com ~all"
-        priority = null
-      },
-      {
-        type     = "TXT"
-        name     = "_dmarc.${var.domain}"
-        value    = "v=DMARC1; p=none;"
-        priority = null
-      },
-    ],
-  )
+  description = "Records SES needs in DNS to verify the domain and sign mail with DKIM."
+  value       = values(local.ses_dns_records)
+}
+
+output "panel_url" {
+  value = "https://${var.domain}"
+}
+
+output "api_url" {
+  value = "https://${local.api_hostname}"
+}
+
+output "pages_project" {
+  description = "Cloudflare Pages project the CI deploys the panel to."
+  value       = cloudflare_pages_project.panel.name
 }
 
 output "ssm_prefix" {
