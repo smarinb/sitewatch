@@ -49,6 +49,8 @@ Autenticación stateless con JWT (HS256). Registro y login devuelven el token; e
 | `PUT` | `/api/sites/{id}` | Reemplaza un sitio |
 | `DELETE` | `/api/sites/{id}` | Borra un sitio |
 | `GET` | `/api/sites/{id}/checks?limit=50` | Histórico de chequeos, del más reciente al más antiguo (`limit` 1–500) |
+| `GET` / `PUT` | `/api/me/notifications` | Canales de alerta: `{"emailAlerts": true, "telegramChatId": "123456789"}` |
+| `POST` | `/api/me/notifications/test` | Envía una alerta de prueba e indica el resultado por canal |
 
 Cada usuario solo ve sus sitios: un sitio ajeno responde `404`, igual que uno inexistente.
 
@@ -69,14 +71,28 @@ Cada 30 s, un `@Scheduled` busca los sitios activos cuyo intervalo ha vencido (c
 
 **Protección SSRF:** los chequeos salen del servidor, así que un usuario podría apuntar un sitio a `localhost`, a la red privada o a los metadatos de AWS (`169.254.169.254`). El cliente HTTP (Apache HttpClient 5) usa un `DnsResolver` propio que rechaza cualquier host que resuelva a una dirección no pública (loopback, privadas, link-local, CGNAT, ULA, NAT64 o 6to4 con IPv4 privada…). Como el cliente se conecta exactamente a las direcciones validadas, la comprobación cubre también las redirecciones y el *DNS rebinding*.
 
-Métrica: `sitewatch_checks_seconds{outcome="up|down"}` en `/actuator/prometheus`.
+El histórico se borra pasados 90 días (cada noche a las 03:30), para que la base de datos no crezca sin límite en una instancia de 1 GB.
+
+Métricas en `/actuator/prometheus`: `sitewatch_checks_seconds{outcome="up|down"}` y `sitewatch_alerts_total{channel, type, result}`.
+
+## Alertas
+| Alerta | Cuándo |
+|---|---|
+| 🔴 Caída | Tras 2 chequeos fallidos seguidos (un fallo suelto no avisa). Una sola vez por incidencia |
+| 🟢 Recuperación | En el primer chequeo correcto tras una caída confirmada, con la duración de la caída |
+| 🟠 SSL a punto de caducar | Cuando quedan menos de 14 días. Una vez por certificado: si se renueva y el nuevo también está cerca de caducar, vuelve a avisar |
+
+El estado de cada sitio (`UNKNOWN`, `UP` o `DOWN`) se guarda en la tabla `site`, y las alertas se envían después de confirmar la transacción. Si un canal falla, el error se registra y se cuenta en las métricas, pero no afecta al chequeo ni a los demás canales.
+
+- **Email:** a la dirección de la cuenta. Se activa al configurar `SPRING_MAIL_HOST` (y usuario y contraseña si el servidor SMTP los pide). En local, `docker compose up -d mailpit` recoge todos los correos en http://localhost:8025.
+- **Telegram:** crea un bot con [@BotFather](https://t.me/BotFather) y pon su token en `TELEGRAM_BOT_TOKEN`. Cada usuario abre un chat con el bot y guarda su *chat id* en `/api/me/notifications`. El token va en la URL de la API de Telegram, así que se elimina de cualquier mensaje de error antes de que llegue a los logs.
 
 ## Roadmap
 - [x] Esqueleto: backend, frontend, esquema inicial (Flyway), CI
 - [x] Registro/login con JWT
 - [x] CRUD de sitios por usuario
 - [x] Checker programado: uptime, tiempo de respuesta, SSL, versión de WordPress
-- [ ] Alertas (email, Telegram)
+- [x] Alertas (email, Telegram)
 - [ ] Panel React con estado e históricos
 - [ ] Terraform + despliegue continuo a EC2
 - [ ] Prometheus + Grafana
