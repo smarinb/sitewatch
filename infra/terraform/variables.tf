@@ -105,3 +105,18 @@ variable "cloudflare_account_id" {
     error_message = "Must be a 32-character hexadecimal id."
   }
 }
+
+variable "github_repo" {
+  description = "GitHub repository (owner/name) whose main branch may deploy. It assumes the deploy role through OIDC, with no stored keys."
+  type        = string
+  default     = "smarinb/sitewatch"
+}
+
+variable "enable_budget" {
+  description = <<-EOT
+    Create the cost allocation tag and the monthly budget. The tag only exists in Billing about 24 hours after
+    the first tagged resources are created, so leave this false on the first apply and set it to true afterwards.
+  EOT
+  type        = bool
+  default     = false
+}

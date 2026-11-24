@@ -1,10 +1,14 @@
 # Cost allocation tags must be activated before a budget can filter by them (data appears within ~24 h).
 resource "aws_ce_cost_allocation_tag" "project" {
+  count = var.enable_budget ? 1 : 0
+
   tag_key = "Project"
   status  = "Active"
 }
 
 resource "aws_budgets_budget" "monthly" {
+  count = var.enable_budget ? 1 : 0
+
   name         = "${var.name}-monthly"
   budget_type  = "COST"
   limit_amount = tostring(var.monthly_budget_usd)

@@ -38,3 +38,8 @@ output "pages_project" {
 output "ssm_prefix" {
   value = local.ssm_prefix
 }
+
+output "github_deploy_role_arn" {
+  description = "Role the deploy workflow assumes through OIDC."
+  value       = aws_iam_role.github_deploy.arn
+}

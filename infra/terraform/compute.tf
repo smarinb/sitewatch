@@ -33,9 +33,12 @@ data "aws_caller_identity" "current" {}
 
 data "aws_iam_policy_document" "read_secrets" {
   statement {
-    sid       = "ReadOwnParameters"
-    actions   = ["ssm:GetParameter", "ssm:GetParameters", "ssm:GetParametersByPath"]
-    resources = ["arn:aws:ssm:${var.region}:${data.aws_caller_identity.current.account_id}:parameter${local.ssm_prefix}*"]
+    sid     = "ReadOwnParameters"
+    actions = ["ssm:GetParameter", "ssm:GetParameters", "ssm:GetParametersByPath"]
+    resources = [
+      "arn:aws:ssm:${var.region}:${data.aws_caller_identity.current.account_id}:parameter${local.ssm_prefix}*",
+      "arn:aws:ssm:${var.region}:${data.aws_caller_identity.current.account_id}:parameter${local.ssm_tls_prefix}*",
+    ]
   }
 }
 

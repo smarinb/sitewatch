@@ -1,7 +1,8 @@
 # Secrets live in SSM Parameter Store (SecureString, free tier), never in the repo or in an image.
 # The instance reads everything under this prefix at boot; the parameter name is the environment variable.
 locals {
-  ssm_prefix = "/${var.name}/env/"
+  ssm_prefix     = "/${var.name}/env/"
+  ssm_tls_prefix = "/${var.name}/tls/"
 
   secrets = {
     JWT_SECRET           = random_id.jwt_secret.b64_std
