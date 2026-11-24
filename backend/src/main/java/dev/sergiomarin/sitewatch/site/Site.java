@@ -41,6 +41,10 @@ public class Site {
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
+    /** Written only by the checker. */
+    @Column(name = "last_checked_at", insertable = false, updatable = false)
+    private Instant lastCheckedAt;
+
     protected Site() {
     }
 
@@ -83,5 +87,9 @@ public class Site {
 
     public Instant getCreatedAt() {
         return createdAt;
+    }
+
+    public Instant getLastCheckedAt() {
+        return lastCheckedAt;
     }
 }

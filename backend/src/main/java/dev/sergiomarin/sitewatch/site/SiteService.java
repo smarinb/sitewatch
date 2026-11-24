@@ -61,6 +61,12 @@ public class SiteService {
         sites.delete(find(ownerId, siteId));
     }
 
+    /** Throws 404 unless the site exists and belongs to the user. */
+    @Transactional(readOnly = true)
+    public void requireOwned(long ownerId, long siteId) {
+        find(ownerId, siteId);
+    }
+
     private Site find(long ownerId, long siteId) {
         return sites.findByIdAndOwnerId(siteId, ownerId)
                 .orElseThrow(() -> ApiException.notFound("Site " + siteId + " not found"));
