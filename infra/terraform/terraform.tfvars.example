@@ -1,0 +1,12 @@
+# Copy to terraform.tfvars (ignored by git) and fill in.
+
+# Your public IP with /32. Find it with: curl -s https://checkip.amazonaws.com
+ssh_allowed_cidr = "203.0.113.7/32"
+
+# Verified in SES (sandbox recipient) and notified by the budget.
+alert_email = "you@example.com"
+
+# Optional:
+# ssh_public_key_path = "~/.ssh/id_ed25519.pub"
+# monthly_budget_usd  = 20
+# swap_gb             = 2

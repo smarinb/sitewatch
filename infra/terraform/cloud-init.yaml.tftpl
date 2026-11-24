@@ -1,0 +1,97 @@
+#cloud-config
+# First boot of the Sitewatch server: swap, Docker, and the secrets from SSM.
+# The application itself is deployed later by CI (image from GHCR); this only prepares the host.
+# Log: /var/log/cloud-init-output.log. Done marker: /var/lib/sitewatch/bootstrap-done
+
+hostname: sitewatch
+package_update: true
+package_upgrade: true
+
+packages:
+  - ca-certificates
+  - curl
+  - jq
+  - unzip
+
+# 1 GB of RAM is not enough for the JVM, PostgreSQL and the OS without swap.
+swap:
+  filename: /swapfile
+  size: ${swap_bytes}
+  maxsize: ${swap_bytes}
+
+write_files:
+  - path: /etc/sysctl.d/99-sitewatch.conf
+    content: |
+      # Use swap only under real memory pressure.
+      vm.swappiness=10
+
+  # Container logs would otherwise grow without limit on a 20 GB disk.
+  - path: /etc/docker/daemon.json
+    content: |
+      {
+        "log-driver": "json-file",
+        "log-opts": { "max-size": "10m", "max-file": "3" }
+      }
+
+  # Non-secret settings for the API, read by docker compose as env_file.
+  - path: /opt/sitewatch/config.env
+    permissions: "0644"
+    content: |
+      SPRING_MAIL_HOST=${smtp_host}
+      SPRING_MAIL_PORT=587
+      SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_REQUIRED=true
+      MAIL_FROM="${mail_from}"
+      CORS_ALLOWED_ORIGINS=${cors_origin}
+
+  # Copies every parameter under the prefix into secrets.env: /sitewatch/env/JWT_SECRET becomes JWT_SECRET=...
+  # Re-run it (as root) after changing a parameter, then redeploy.
+  - path: /usr/local/bin/sitewatch-fetch-secrets
+    permissions: "0750"
+    content: |
+      #!/usr/bin/env bash
+      set -euo pipefail
+      out=/opt/sitewatch/secrets.env
+      tmp=$(mktemp)
+      trap 'rm -f "$tmp"' EXIT
+      aws ssm get-parameters-by-path --region ${region} --path ${ssm_prefix} --with-decryption \
+        --query 'Parameters[].[Name,Value]' --output text |
+        while IFS=$'\t' read -r name value; do
+          echo "$(basename "$name")=$value"
+        done > "$tmp"
+      if [ ! -s "$tmp" ]; then
+        echo "No parameters found under ${ssm_prefix}" >&2
+        exit 1
+      fi
+      install -m 0600 -o ubuntu -g ubuntu "$tmp" "$out"
+      echo "Wrote $(wc -l < "$out") secrets to $out"
+
+  - path: /usr/local/sbin/sitewatch-bootstrap
+    permissions: "0750"
+    content: |
+      #!/usr/bin/env bash
+      set -euxo pipefail
+
+      sysctl --system
+
+      # Docker Engine and the Compose plugin from Docker's own apt repository.
+      install -m 0755 -d /etc/apt/keyrings
+      curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+      chmod a+r /etc/apt/keyrings/docker.asc
+      echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" \
+        > /etc/apt/sources.list.d/docker.list
+      apt-get update
+      apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+      systemctl enable --now docker
+      usermod -aG docker ubuntu
+
+      # AWS CLI v2, to read the secrets.
+      snap install aws-cli --classic
+
+      install -d -o ubuntu -g ubuntu /opt/sitewatch
+      /usr/local/bin/sitewatch-fetch-secrets
+
+      install -d /var/lib/sitewatch
+      date -u +%FT%TZ > /var/lib/sitewatch/bootstrap-done
+
+runcmd:
+  - [bash, /usr/local/sbin/sitewatch-bootstrap]
