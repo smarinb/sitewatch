@@ -112,6 +112,17 @@ variable "github_repo" {
   default     = "smarinb/sitewatch"
 }
 
+variable "github_oidc_subject_prefix" {
+  description = <<-EOT
+    How GitHub names this repository in its OIDC token. Newer repositories use an immutable form that includes
+    numeric ids, such as "repo:owner@123/name@456"; older ones use "repo:owner/name". Read yours with:
+      gh api repos/OWNER/REPO/actions/oidc/customization/sub
+    Leave empty to use "repo:<github_repo>".
+  EOT
+  type        = string
+  default     = null
+}
+
 variable "enable_budget" {
   description = <<-EOT
     Create the cost allocation tag and the monthly budget. The tag only exists in Billing about 24 hours after

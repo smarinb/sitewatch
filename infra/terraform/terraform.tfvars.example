@@ -6,6 +6,10 @@ ssh_allowed_cidr = "203.0.113.7/32"
 # Verified in SES (sandbox recipient) and notified by the budget.
 alert_email = "you@example.com"
 
+# How GitHub names your repository in OIDC tokens (see the variable description):
+#   gh api repos/OWNER/REPO/actions/oidc/customization/sub
+# github_oidc_subject_prefix = "repo:owner@123456/name@789012"
+
 # Optional:
 # Reuse an Elastic IP you already own instead of creating one (it is taken from the instance that has it).
 # existing_eip_allocation_id = "eipalloc-0123456789abcdef0"

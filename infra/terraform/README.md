@@ -53,6 +53,9 @@ Permisos del token: zona `sergiomarin.dev` con DNS (editar), Zona (leer), Config
 
 Todavía **no** se configura el modo TLS «Full (strict)» ni el certificado de origen: se hace junto con el proxy de la EC2 en el bloque de despliegue, para no dejar `api.monitor` devolviendo un 526 mientras no haya nada que servir. Y será solo para `api.monitor` (regla de configuración), sin cambiar el modo de toda la zona, que usa también tu web.
 
+## OIDC de GitHub: el nombre del repositorio en el token
+Los repositorios nuevos usan el *subject inmutable*: el token no lleva `repo:dueño/nombre` sino `repo:dueño@<id>/nombre@<id>`, con los identificadores numéricos, para que nadie pueda suplantar el repositorio si se renombra o se borra. La política de confianza del rol tiene que usar ese mismo formato o AWS rechaza el rol con «Not authorized to perform sts:AssumeRoleWithWebIdentity». Léelo con `gh api repos/DUEÑO/REPO/actions/oidc/customization/sub` y ponlo en `github_oidc_subject_prefix` de `terraform.tfvars` (no hace falta que vaya al repositorio).
+
 ## Uso
 ```bash
 cd infra/terraform
