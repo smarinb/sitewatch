@@ -34,12 +34,20 @@ for file in docker-compose.prod.yml Caddyfile; do
   [ -s "$dir/$file.new" ] || { echo "$file is empty" >&2; exit 1; }
 done
 
+# Prints one SSM parameter. The value is captured in a variable on purpose: when SSM Run Command starts this
+# script, the snap-packaged AWS CLI writes nothing at all (and still exits 0) if its output is redirected
+# straight to a file. A pipe or a variable works.
+fetch_param() {
+  local value
+  value="$(aws ssm get-parameter --region "$region" --name "$1" --with-decryption --query Parameter.Value --output text)"
+  [ -n "$value" ] || { echo "SSM parameter $1 is empty" >&2; return 1; }
+  printf '%s\n' "$value"
+}
+
 log "Refreshing secrets and the origin certificate from SSM"
 /usr/local/bin/sitewatch-fetch-secrets
 for pair in origin-cert:origin.pem origin-key:origin.key; do
-  aws ssm get-parameter --region "$region" --name "/sitewatch/tls/${pair%%:*}" --with-decryption \
-    --query Parameter.Value --output text > "$dir/certs/${pair##*:}.new"
-  [ -s "$dir/certs/${pair##*:}.new" ] || { echo "${pair%%:*} is empty" >&2; exit 1; }
+  fetch_param "/sitewatch/tls/${pair%%:*}" > "$dir/certs/${pair##*:}.new"
   chmod 0600 "$dir/certs/${pair##*:}.new"
   mv "$dir/certs/${pair##*:}.new" "$dir/certs/${pair##*:}"
 done
