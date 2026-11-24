@@ -7,18 +7,18 @@ Crea en AWS el servidor de Sitewatch y todo lo que necesita para enviar emails, 
 |---|---|
 | VPC propia, subred pública y gateway | Aislada de cualquier otro proyecto de la cuenta |
 | EC2 `t3.micro`, Ubuntu 24.04, disco gp3 de 20 GB cifrado | Servidor de la API y de PostgreSQL |
-| Elastic IP | IP fija a la que apuntará `api.monitor.sergiomarin.dev`. Nueva, o una que ya tengas con `existing_eip_allocation_id` |
+| Elastic IP | IP fija a la que apuntará `monitor-api.sergiomarin.dev`. Nueva, o una que ya tengas con `existing_eip_allocation_id` |
 | Security group | **80/443 solo desde los rangos de Cloudflare** (se descargan de cloudflare.com), **SSH solo desde tu IP** |
 | cloud-init | Swap de 2 GB, Docker y Compose, rotación de logs y lectura de secretos desde SSM |
 | Rol de instancia | Solo puede leer sus parámetros de SSM; permite Session Manager como alternativa a SSH |
 | SES: dominio `monitor.sergiomarin.dev` | Verificado con DKIM y dominio MAIL FROM propio (`mail.monitor…`) para que SPF alinee |
 | Usuario IAM de SMTP | Solo puede enviar desde `alerts@monitor.sergiomarin.dev` |
 | SSM Parameter Store (SecureString) | `JWT_SECRET`, `DB_PASSWORD` y credenciales SMTP, generados por Terraform |
-| Cloudflare: `api.monitor…` | Registro A con proxy hacia la Elastic IP |
+| Cloudflare: `monitor-api…` | Registro A con proxy hacia la Elastic IP |
 | Cloudflare: registros de SES | 3 CNAME de DKIM, MX y TXT (SPF) del dominio MAIL FROM, y DMARC |
 | Cloudflare Pages | Proyecto `sitewatch` (subida directa desde el CI), dominio `monitor.sergiomarin.dev` y su CNAME |
-| Cloudflare: certificado de origen | Certificado ECDSA de 15 años para `api.monitor…`, generado por Terraform y guardado en SSM (`/sitewatch/tls/`). Solo lo reconoce Cloudflare |
-| Cloudflare: regla de configuración | TLS «Full (strict)» **solo** para `api.monitor…`; el modo de la zona no cambia |
+| Cloudflare: certificado de origen | Certificado ECDSA de 15 años para `monitor-api…`, generado por Terraform y guardado en SSM (`/sitewatch/tls/`). Solo lo reconoce Cloudflare |
+| Cloudflare: regla de configuración | TLS «Full (strict)» **solo** para `monitor-api…`; el modo de la zona no cambia |
 | OIDC de GitHub y rol `sitewatch-github-deploy` | El CI despliega sin claves de AWS: solo puede ejecutar comandos en esta instancia y solo desde `main` |
 | AWS Budgets | Aviso al 80 % del gasto real y al 100 % del previsto, filtrado por la etiqueta `Project=sitewatch` |
 
@@ -44,6 +44,8 @@ Precios de lista en us-east-1, a verificar con la calculadora de AWS:
 El presupuesto está en 20 USD (`monthly_budget_usd`) y solo cuenta los recursos con la etiqueta `Project=sitewatch`. La etiqueta de costes tarda hasta 24 h en empezar a registrar datos.
 
 ## Cloudflare
+**El nombre de la API tiene un solo nivel** (`monitor-api.sergiomarin.dev`, no `api.monitor.…`): el certificado gratuito de Cloudflare (Universal SSL) cubre `dominio` y `*.dominio`, pero no subdominios de segundo nivel, y con un nombre más profundo todos los apretones TLS fallan en el borde.
+
 Solo **añade** registros y un proyecto: los registros que ya tenga la zona (la web, el correo, Resend) no se gestionan aquí y nunca se tocan. El token de API va en la variable `CLOUDFLARE_API_TOKEN`, nunca en el repo ni en `terraform.tfvars`:
 
 ```bash
@@ -51,7 +53,7 @@ set -a; . ~/.config/sitewatch/cloudflare.env; set +a   # fichero 600 con CLOUDFL
 ```
 Permisos del token: zona `sergiomarin.dev` con DNS (editar), Zona (leer), Configuración de zona (editar) y Reglas de configuración (editar); cuenta con Cloudflare Pages (editar). El id de la zona y de la cuenta van en `terraform.tfvars`.
 
-Todavía **no** se configura el modo TLS «Full (strict)» ni el certificado de origen: se hace junto con el proxy de la EC2 en el bloque de despliegue, para no dejar `api.monitor` devolviendo un 526 mientras no haya nada que servir. Y será solo para `api.monitor` (regla de configuración), sin cambiar el modo de toda la zona, que usa también tu web.
+Todavía **no** se configura el modo TLS «Full (strict)» ni el certificado de origen: se hace junto con el proxy de la EC2 en el bloque de despliegue, para no dejar `monitor-api` devolviendo un 526 mientras no haya nada que servir. Y será solo para `monitor-api` (regla de configuración), sin cambiar el modo de toda la zona, que usa también tu web.
 
 ## OIDC de GitHub: el nombre del repositorio en el token
 Los repositorios nuevos usan el *subject inmutable*: el token no lleva `repo:dueño/nombre` sino `repo:dueño@<id>/nombre@<id>`, con los identificadores numéricos, para que nadie pueda suplantar el repositorio si se renombra o se borra. La política de confianza del rol tiene que usar ese mismo formato o AWS rechaza el rol con «Not authorized to perform sts:AssumeRoleWithWebIdentity». Léelo con `gh api repos/DUEÑO/REPO/actions/oidc/customization/sub` y ponlo en `github_oidc_subject_prefix` de `terraform.tfvars` (no hace falta que vaya al repositorio).

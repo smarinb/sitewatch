@@ -2,7 +2,7 @@
 # (the portfolio, Hostinger mail, Resend) are not managed here and are never touched.
 
 locals {
-  api_hostname = "api.${var.domain}"
+  api_hostname = var.api_hostname
 }
 
 # ---- the API: proxied by Cloudflare, so TLS and DDoS protection come with it ----

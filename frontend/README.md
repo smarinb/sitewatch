@@ -29,7 +29,7 @@ npm run build      # tsc + vite build → dist/
 ## Variables de entorno
 | Variable | Uso |
 |---|---|
-| `VITE_API_URL` | URL base de la API en producción (`https://api.monitor.sergiomarin.dev`). En desarrollo se deja vacía: el proxy de Vite evita CORS |
+| `VITE_API_URL` | URL base de la API en producción (`https://monitor-api.sergiomarin.dev`). En desarrollo se deja vacía: el proxy de Vite evita CORS |
 
 ## Cloudflare Pages
 Directorio raíz `frontend`, comando `npm run build`, salida `dist`, y `VITE_API_URL` como variable de entorno. `public/_redirects` reenvía las rutas del cliente (`/sites/3`) a `index.html`. En la API hay que poner `CORS_ALLOWED_ORIGINS=https://monitor.sergiomarin.dev`.

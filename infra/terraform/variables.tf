@@ -64,6 +64,16 @@ variable "domain" {
   default     = "monitor.sergiomarin.dev"
 }
 
+variable "api_hostname" {
+  description = <<-EOT
+    Public hostname of the API. It must be a single label under the zone, such as monitor-api.example.com:
+    Cloudflare's free Universal SSL certificate covers example.com and *.example.com only, so a name two
+    levels deep (api.monitor.example.com) has no certificate at the edge and every TLS handshake fails.
+  EOT
+  type        = string
+  default     = "monitor-api.sergiomarin.dev"
+}
+
 variable "mail_from_subdomain" {
   description = "Label under the domain used as the custom MAIL FROM domain (makes SPF align with the sender)."
   type        = string

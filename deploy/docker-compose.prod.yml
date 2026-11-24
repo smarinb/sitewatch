@@ -61,7 +61,7 @@ services:
     image: caddy:2-alpine
     restart: unless-stopped
     environment:
-      API_HOSTNAME: ${API_HOSTNAME:-api.monitor.sergiomarin.dev}
+      API_HOSTNAME: ${API_HOSTNAME:-monitor-api.sergiomarin.dev}
     ports:
       - "${PROXY_PORT:-443}:443"
     volumes:
