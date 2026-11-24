@@ -95,6 +95,22 @@ El estado de cada sitio (`UNKNOWN`, `UP` o `DOWN`) se guarda en la tabla `site`,
 - **Email:** a la dirección de la cuenta. Se activa al configurar `SPRING_MAIL_HOST` (y usuario y contraseña si el servidor SMTP los pide). En local, `docker compose up -d mailpit` recoge todos los correos en http://localhost:8025.
 - **Telegram:** crea un bot con [@BotFather](https://t.me/BotFather) y pon su token en `TELEGRAM_BOT_TOKEN`. Cada usuario abre un chat con el bot y guarda su *chat id* en `/api/me/notifications`. El token va en la URL de la API de Telegram, así que se elimina de cualquier mensaje de error antes de que llegue a los logs.
 
+## Despliegue
+Cada push a `main` que pasa el CI se despliega solo, sin ninguna clave de AWS guardada en GitHub:
+
+```
+push → CI (tests, lint, terraform validate, shellcheck)
+     → imagen Docker a GHCR (etiqueta sha-<commit>)
+     → GitHub obtiene credenciales temporales de AWS por OIDC (solo desde main)
+     → SSM Run Command ejecuta deploy/deploy.sh en la EC2
+          · descarga el compose del commit exacto, refresca secretos y certificado desde SSM
+          · arranca las imágenes nuevas y espera a que estén sanas
+          · si no lo están, vuelve a la versión anterior
+     → comprueba /actuator/health a través de Cloudflare
+     → compila el panel y lo sube a Cloudflare Pages
+```
+El tráfico entra por Cloudflare (proxy, TLS «Full (strict)» con un certificado de origen) y solo Cloudflare puede llegar a los puertos 80/443 de la EC2. Caddy termina TLS y reenvía a la API; las métricas (`/actuator/prometheus`) no se exponen. El despliegue está apagado hasta que la variable del repositorio `DEPLOY_ENABLED` vale `true`.
+
 ## Roadmap
 - [x] Esqueleto: backend, frontend, esquema inicial (Flyway), CI
 - [x] Registro/login con JWT
@@ -102,6 +118,6 @@ El estado de cada sitio (`UNKNOWN`, `UP` o `DOWN`) se guarda en la tabla `site`,
 - [x] Checker programado: uptime, tiempo de respuesta, SSL, versión de WordPress
 - [x] Alertas (email, Telegram)
 - [x] Panel React: login, lista de sitios, detalle con gráfica de tiempo de respuesta y ajustes de alertas
-- [ ] Terraform + despliegue continuo a EC2
+- [x] Terraform (AWS y Cloudflare) y despliegue continuo a EC2 y Pages
 - [ ] Prometheus + Grafana
 - [ ] Fase 2: plugins vulnerables (WPScan), página de estado pública

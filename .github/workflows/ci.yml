@@ -61,5 +61,102 @@ jobs:
       - name: Reject malformed arguments before touching anything
         run: |
           for args in "abc tag" "0000000000000000000000000000000000000000 ../etc" "0000000000000000000000000000000000000000 a;rm"; do
-            if bash deploy/deploy.sh $args; then echo "accepted: $args"; exit 1; fi
+            read -ra words <<< "$args"
+            if bash deploy/deploy.sh "${words[@]}"; then echo "accepted: $args"; exit 1; fi
           done
+
+  # ---- Continuous deployment. Off until the repository variable DEPLOY_ENABLED is "true". ----
+  image:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.DEPLOY_ENABLED == 'true'
+    needs: [backend, frontend, infra, deploy-config]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: tag
+        run: echo "tag=sha-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: backend
+          push: true
+          tags: ghcr.io/smarinb/sitewatch-api:${{ steps.tag.outputs.tag }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy-api:
+    needs: image
+    runs-on: ubuntu-latest
+    # One deploy at a time; a newer push waits instead of cancelling a deploy halfway.
+    concurrency:
+      group: deploy-api
+      cancel-in-progress: false
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: us-east-1
+      - name: Deploy on the server through SSM
+        env:
+          SHA: ${{ github.sha }}
+          TAG: ${{ needs.image.outputs.tag }}
+          INSTANCE_ID: ${{ vars.EC2_INSTANCE_ID }}
+        run: |
+          command="curl -fsSL https://raw.githubusercontent.com/smarinb/sitewatch/$SHA/deploy/deploy.sh -o /tmp/deploy.sh && bash /tmp/deploy.sh $SHA $TAG"
+          jq -n --arg c "$command" '{commands: [$c]}' > params.json
+          id=$(aws ssm send-command --instance-ids "$INSTANCE_ID" --document-name AWS-RunShellScript \
+                 --comment "deploy $TAG" --parameters file://params.json \
+                 --query Command.CommandId --output text)
+          echo "Command $id"
+          for _ in $(seq 1 60); do
+            status=$(aws ssm get-command-invocation --command-id "$id" --instance-id "$INSTANCE_ID" \
+                       --query Status --output text 2>/dev/null || echo Pending)
+            case "$status" in Success|Failed|Cancelled|TimedOut) break;; esac
+            sleep 10
+          done
+          aws ssm get-command-invocation --command-id "$id" --instance-id "$INSTANCE_ID" \
+            --query '[StandardOutputContent,StandardErrorContent]' --output text
+          [ "$status" = "Success" ] || { echo "Deploy ended as: $status"; exit 1; }
+      - name: Check the API through Cloudflare
+        run: |
+          for _ in $(seq 1 12); do
+            curl -fsS --max-time 10 https://api.monitor.sergiomarin.dev/actuator/health && exit 0
+            sleep 10
+          done
+          echo "The API did not answer through Cloudflare" >&2
+          exit 1
+
+  deploy-panel:
+    needs: deploy-api
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run build
+        env:
+          VITE_API_URL: https://api.monitor.sergiomarin.dev
+      - uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: frontend
+          command: pages deploy dist --project-name=sitewatch --branch=main
