@@ -79,6 +79,36 @@ class CheckRunnerTest extends IntegrationTest {
     }
 
     @Test
+    void latestReturnsOneCheckPerOwnSiteAndSinceFiltersHistory() throws Exception {
+        long up = createSite("Up", server.url("/"));
+        long down = createSite("Down", server.url("/down"));
+        runner.runDueChecks();
+        jdbc.update("UPDATE site SET last_checked_at = now() - interval '6 minutes' WHERE id IN (?, ?)", up, down);
+        runner.runDueChecks();
+        // An older check that must never be reported as the latest.
+        jdbc.update("INSERT INTO site_check (site_id, checked_at, up) VALUES (?, now() - interval '3 hours', false)",
+                up);
+
+        mvc.perform(get("/api/checks/latest").header(HttpHeaders.AUTHORIZATION, bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[?(@.siteId == %d)].up".formatted(up)).value(true))
+                .andExpect(jsonPath("$[?(@.siteId == %d)].up".formatted(down)).value(false))
+                .andExpect(jsonPath("$[?(@.siteId == %d)].wpVersion".formatted(up)).value("6.7.1"));
+
+        // Another user sees none of them.
+        mvc.perform(get("/api/checks/latest").header(HttpHeaders.AUTHORIZATION, bearer(registerUser())))
+                .andExpect(jsonPath("$.length()").value(0));
+
+        String lastHour = java.time.Instant.now().minusSeconds(3600).toString();
+        mvc.perform(get("/api/sites/{id}/checks", up).param("since", lastHour)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(token)))
+                .andExpect(jsonPath("$.length()").value(2));
+        mvc.perform(get("/api/sites/{id}/checks", up).header(HttpHeaders.AUTHORIZATION, bearer(token)))
+                .andExpect(jsonPath("$.length()").value(3));
+    }
+
+    @Test
     void inactiveSitesAreNotChecked() throws Exception {
         long id = createSite("Paused", server.url("/"));
         mvc.perform(put("/api/sites/{id}", id).header(HttpHeaders.AUTHORIZATION, bearer(token))
