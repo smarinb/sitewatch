@@ -2,7 +2,7 @@
 
 Monitorización de sitios web y WordPress: uptime, tiempo de respuesta, caducidad de SSL y versión de WordPress, con alertas por email/Telegram.
 
-**Demo:** https://monitor.sergiomarin.dev (próximamente)
+**Demo:** https://monitor.sergiomarin.dev — pulsa **Try the demo** para entrar con una cuenta de solo lectura (el registro está cerrado en la demo pública).
 
 ## Stack
 | Capa | Tecnología |
@@ -16,14 +16,16 @@ Monitorización de sitios web y WordPress: uptime, tiempo de respuesta, caducida
 | Observabilidad | Actuator, Micrometer, Prometheus, Grafana |
 
 ## Arquitectura
-```
- Navegador ──► Cloudflare Pages (React SPA)
-     │
-     └──► Cloudflare (proxy, TLS) ──► EC2 ──► Spring Boot API ──► PostgreSQL
-                                              │
-                                              └── @Scheduled checker (hilos virtuales,
-                                                  DNS con protección SSRF) ──► sitios monitorizados
-```
+![Arquitectura de Sitewatch: el navegador carga el panel desde Cloudflare Pages y llama a la API a través de Cloudflare y Caddy; la API guarda en PostgreSQL, comprueba los sitios y avisa por Telegram y SES; Alloy envía métricas a Grafana Cloud, PostgreSQL se vuelca cada noche a S3 y GitHub Actions despliega por SSM](docs/architecture.svg)
+
+Todo cabe en **una EC2 t3.micro de 1 GB**: no hay workers ni colas aparte.
+
+- **Panel y API:** el panel (React) es estático en Cloudflare Pages. Las llamadas a `/api` pasan por Cloudflare (TLS «Full (strict)»), Caddy y llegan a la API de Spring Boot, que guarda en PostgreSQL.
+- **Chequeos:** un `@Scheduled` dentro de la propia API comprueba cada sitio en hilos virtuales, con protección SSRF.
+- **Alertas:** por Telegram (Bot API) y por email (Amazon SES).
+- **Observabilidad:** Grafana Alloy lee `/actuator/prometheus` dentro de la red de Docker y lo envía a Grafana Cloud.
+- **Copias:** un temporizador de systemd vuelca PostgreSQL a S3 cada noche; la EC2 solo puede escribir en el bucket.
+- **Entrega:** cada push a `main` se prueba, se construye y se despliega por SSM (sin claves de AWS en GitHub). Terraform define AWS y Cloudflare, con el estado en S3.
 
 ## Capturas
 | Lista de sitios | Detalle con histórico |
@@ -47,11 +49,14 @@ Autenticación stateless con JWT (HS256). Registro y login devuelven el token; e
 
 | Método | Ruta | Descripción |
 |---|---|---|
-| `POST` | `/api/auth/register` | Crea la cuenta y devuelve un token (`201`; `409` si el email ya existe) |
-| `POST` | `/api/auth/login` | Devuelve un token (`401` si las credenciales no son válidas) |
+| `POST` | `/api/auth/register` | Crea la cuenta y devuelve un token (`201`; `409` si el email ya existe; `403` si el registro está cerrado) |
+| `POST` | `/api/auth/login` | Devuelve un token (`401` si las credenciales no son válidas; `429` tras 5 fallos seguidos del mismo email) |
+| `GET` | `/api/auth/config` | Qué ofrece este despliegue: `{"registrationOpen", "demoAvailable"}` |
+| `POST` | `/api/auth/demo` | Token de la cuenta de demostración, de solo lectura (`404` si no hay demo) |
+| `POST` | `/api/auth/verify-email` | Confirma el email con el token del enlace (`204`; `400` si caducó o ya se usó) |
 | `GET` | `/api/auth/me` | Usuario autenticado |
 | `GET` | `/api/sites` | Sitios del usuario |
-| `POST` | `/api/sites` | Añade un sitio (`name`, `url`, `checkIntervalMinutes` 1–1440 (por defecto 5), `active`) |
+| `POST` | `/api/sites` | Añade un sitio (`name`, `url`, `checkIntervalMinutes` 5–1440 (por defecto 5), `active`) |
 | `GET` | `/api/sites/{id}` | Detalle de un sitio |
 | `PUT` | `/api/sites/{id}` | Reemplaza un sitio |
 | `DELETE` | `/api/sites/{id}` | Borra un sitio |
@@ -60,7 +65,9 @@ Autenticación stateless con JWT (HS256). Registro y login devuelven el token; e
 | `GET` / `PUT` | `/api/me/notifications` | Canales de alerta: `{"emailAlerts": true, "telegramChatId": "123456789"}` |
 | `POST` | `/api/me/notifications/test` | Envía una alerta de prueba e indica el resultado por canal |
 
-Cada usuario solo ve sus sitios: un sitio ajeno responde `404`, igual que uno inexistente.
+| `POST` | `/api/me/email-verification` | Reenvía el enlace de confirmación del email (`429` si se pidió hace menos de un minuto) |
+
+Cada usuario solo ve sus sitios: un sitio ajeno responde `404`, igual que uno inexistente. Cada usuario puede vigilar hasta 10 sitios.
 
 ```bash
 TOKEN=$(curl -s -X POST localhost:8080/api/auth/register -H 'Content-Type: application/json' \
@@ -81,7 +88,7 @@ Cada 30 s, un `@Scheduled` busca los sitios activos cuyo intervalo ha vencido (c
 
 El histórico se borra pasados 90 días (cada noche a las 03:30), para que la base de datos no crezca sin límite en una instancia de 1 GB.
 
-Métricas en `/actuator/prometheus`: `sitewatch_checks_seconds{outcome="up|down"}` y `sitewatch_alerts_total{channel, type, result}`.
+Métricas en `/actuator/prometheus`: `sitewatch_checks_seconds{outcome="up|down"}` y `sitewatch_alerts_total{channel, type, result}`. Las lee Grafana Alloy dentro de la red de Docker (ver más abajo); el proxy responde `404` a esa ruta desde fuera.
 
 ## Alertas
 | Alerta | Cuándo |
@@ -92,7 +99,7 @@ Métricas en `/actuator/prometheus`: `sitewatch_checks_seconds{outcome="up|down"
 
 El estado de cada sitio (`UNKNOWN`, `UP` o `DOWN`) se guarda en la tabla `site`, y las alertas se envían después de confirmar la transacción. Si un canal falla, el error se registra y se cuenta en las métricas, pero no afecta al chequeo ni a los demás canales.
 
-- **Email:** a la dirección de la cuenta. Se activa al configurar `SPRING_MAIL_HOST` (y usuario y contraseña si el servidor SMTP los pide). En local, `docker compose up -d mailpit` recoge todos los correos en http://localhost:8025.
+- **Email:** a la dirección de la cuenta, **una vez confirmada** con el enlace que se envía al registrarse (un solo uso, caduca a las 24 h y solo se guarda su hash). Hasta entonces no se escribe a esa dirección. Se activa al configurar `SPRING_MAIL_HOST` (y usuario y contraseña si el servidor SMTP los pide). En local, `docker compose up -d mailpit` recoge todos los correos en http://localhost:8025.
 - **Telegram:** crea un bot con [@BotFather](https://t.me/BotFather) y pon su token en `TELEGRAM_BOT_TOKEN`. Cada usuario abre un chat con el bot y guarda su *chat id* en `/api/me/notifications`. El token va en la URL de la API de Telegram, así que se elimina de cualquier mensaje de error antes de que llegue a los logs.
 
 ## Despliegue
@@ -111,6 +118,18 @@ push → CI (tests, lint, terraform validate, shellcheck)
 ```
 El tráfico entra por Cloudflare (proxy, TLS «Full (strict)» con un certificado de origen) y solo Cloudflare puede llegar a los puertos 80/443 de la EC2. Caddy termina TLS y reenvía a la API; las métricas (`/actuator/prometheus`) no se exponen. El despliegue está apagado hasta que la variable del repositorio `DEPLOY_ENABLED` vale `true`.
 
+## Demo pública
+La instancia en vivo está pensada para que se pueda ver, no para usarla como servicio:
+
+- **Registro cerrado** (`REGISTRATION_ENABLED=false`) y una cuenta de demostración (`DEMO_EMAIL`) **de solo lectura**: sus tokens llevan un claim `readOnly` y un filtro rechaza cualquier escritura (`403`), de modo que la interfaz y el servidor están de acuerdo.
+- **Límites:** 10 sitios por usuario, un chequeo cada 5 minutos como mínimo y bloqueo de 15 minutos tras 5 fallos de login para un mismo email.
+- **SES en sandbox** a propósito: solo puede escribir a direcciones verificadas, así que no sirve para enviar a terceros.
+
+## Observabilidad y copias
+- **Métricas:** Grafana Alloy (128 MB) lee la API cada 60 s y escribe en Grafana Cloud (plan gratuito). El panel versionado está en [`deploy/grafana/sitewatch-dashboard.json`](deploy/grafana/sitewatch-dashboard.json).
+- **Copias:** `deploy/backup.sh` hace `pg_dump` y lo envía por una tubería a S3 (el volcado nunca toca el disco), cada noche a las 03:00 UTC, con 30 días de retención. El rol de la instancia solo puede añadir objetos. La restauración está probada y documentada en [`infra/terraform/README.md`](infra/terraform/README.md).
+- **Presupuesto:** una alerta de AWS Budgets (20 USD/mes, solo recursos con la etiqueta `Project=sitewatch`) avisa por email.
+
 ## Roadmap
 - [x] Esqueleto: backend, frontend, esquema inicial (Flyway), CI
 - [x] Registro/login con JWT
@@ -119,5 +138,7 @@ El tráfico entra por Cloudflare (proxy, TLS «Full (strict)» con un certificad
 - [x] Alertas (email, Telegram)
 - [x] Panel React: login, lista de sitios, detalle con gráfica de tiempo de respuesta y ajustes de alertas
 - [x] Terraform (AWS y Cloudflare) y despliegue continuo a EC2 y Pages
-- [ ] Prometheus + Grafana
+- [x] Prometheus + Grafana (Alloy → Grafana Cloud)
+- [x] Copias de PostgreSQL a S3 y estado de Terraform en S3
+- [x] Verificación de email, demo pública de solo lectura y límites de uso
 - [ ] Fase 2: plugins vulnerables (WPScan), página de estado pública
