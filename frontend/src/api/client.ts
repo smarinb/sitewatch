@@ -3,6 +3,7 @@ import type {
   Credentials,
   LatestCheck,
   NotificationSettings,
+  NotificationStatus,
   Site,
   SiteInput,
   TestAlertResult,
@@ -42,9 +43,13 @@ export interface Api {
   deleteSite(id: number): Promise<void>
   history(id: number, params: { limit?: number; since?: string }): Promise<Check[]>
   latestChecks(): Promise<LatestCheck[]>
-  getNotifications(): Promise<NotificationSettings>
-  saveNotifications(settings: NotificationSettings): Promise<NotificationSettings>
+  getNotifications(): Promise<NotificationStatus>
+  saveNotifications(settings: NotificationSettings): Promise<NotificationStatus>
   sendTestAlert(): Promise<TestAlertResult>
+  /** Confirms the address with the token from the email link. Public: needs no session. */
+  verifyEmail(token: string): Promise<void>
+  /** Emails a new confirmation link to the signed-in user. */
+  resendVerification(): Promise<void>
 }
 
 /**
@@ -99,5 +104,7 @@ export function createApi(getToken: () => string | null, onUnauthorized: () => v
     getNotifications: () => request('/api/me/notifications'),
     saveNotifications: (settings) => request('/api/me/notifications', { method: 'PUT', body: settings }),
     sendTestAlert: () => request('/api/me/notifications/test', { method: 'POST' }),
+    verifyEmail: (token) => request('/api/auth/verify-email', { method: 'POST', body: { token } }),
+    resendVerification: () => request('/api/me/email-verification', { method: 'POST' }),
   }
 }

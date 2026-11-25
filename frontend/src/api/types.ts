@@ -49,5 +49,10 @@ export interface NotificationSettings {
   telegramChatId: string | null
 }
 
-/** Per channel: "sent", "failed", "disabled" or "not configured on the server". */
+/** What GET and PUT /api/me/notifications answer: the settings plus whether the account address is confirmed. */
+export interface NotificationStatus extends NotificationSettings {
+  emailVerified: boolean
+}
+
+/** Per channel: "sent", "failed", "disabled", "email address not verified" or "not configured on the server". */
 export type TestAlertResult = Record<string, string>

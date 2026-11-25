@@ -9,7 +9,7 @@ describe('alert settings', () => {
     const user = userEvent.setup()
     signIn()
     const mock = mockApi({
-      'GET /api/me/notifications': { json: { emailAlerts: true, telegramChatId: null } },
+      'GET /api/me/notifications': { json: { emailAlerts: true, telegramChatId: null, emailVerified: true } },
       'PUT /api/me/notifications': ({ body }) => ({ json: body }),
       'POST /api/me/notifications/test': { json: { email: 'sent', telegram: 'not configured on the server' } },
     })
@@ -39,7 +39,7 @@ describe('alert settings', () => {
     const user = userEvent.setup()
     signIn()
     const mock = mockApi({
-      'GET /api/me/notifications': { json: { emailAlerts: true, telegramChatId: '616828960' } },
+      'GET /api/me/notifications': { json: { emailAlerts: true, telegramChatId: '616828960', emailVerified: true } },
       'PUT /api/me/notifications': ({ body }) => ({ json: body }),
     })
 
@@ -56,7 +56,7 @@ describe('alert settings', () => {
     const user = userEvent.setup()
     signIn()
     mockApi({
-      'GET /api/me/notifications': { json: { emailAlerts: true, telegramChatId: null } },
+      'GET /api/me/notifications': { json: { emailAlerts: true, telegramChatId: null, emailVerified: true } },
       'PUT /api/me/notifications': { status: 400, json: { detail: 'Validation failed', errors: { telegramChatId: 'must be a numeric Telegram chat id' } } },
     })
 
@@ -66,5 +66,43 @@ describe('alert settings', () => {
 
     expect(await screen.findByText('must be a numeric Telegram chat id')).toBeInTheDocument()
     expect(screen.queryByText('Saved')).not.toBeInTheDocument()
+  })
+
+  it('warns about an unconfirmed address and lets the user ask for the link again', async () => {
+    const user = userEvent.setup()
+    signIn()
+    const mock = mockApi({
+      'GET /api/me/notifications': { json: { emailAlerts: true, telegramChatId: null, emailVerified: false } },
+      'POST /api/me/email-verification': { status: 204 },
+    })
+
+    renderApp('/settings')
+    expect(await screen.findByText(/email address is not confirmed yet/)).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Send the link again' }))
+    expect(await screen.findByText('Link sent. Check your inbox (and spam).')).toBeInTheDocument()
+    expect(bodiesSentTo(mock, 'POST /api/me/email-verification')).toHaveLength(1)
+  })
+
+  it('shows the server message when the link was asked for too soon', async () => {
+    const user = userEvent.setup()
+    signIn()
+    mockApi({
+      'GET /api/me/notifications': { json: { emailAlerts: true, telegramChatId: null, emailVerified: false } },
+      'POST /api/me/email-verification': { status: 429, json: { detail: 'Wait a minute before asking for another email' } },
+    })
+
+    renderApp('/settings')
+    await user.click(await screen.findByRole('button', { name: 'Send the link again' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Wait a minute before asking for another email')
+  })
+
+  it('shows no warning for a confirmed address', async () => {
+    signIn()
+    mockApi({ 'GET /api/me/notifications': { json: { emailAlerts: true, telegramChatId: null, emailVerified: true } } })
+
+    renderApp('/settings')
+    await screen.findByRole('button', { name: 'Save' })
+    expect(screen.queryByText(/email address is not confirmed yet/)).not.toBeInTheDocument()
   })
 })

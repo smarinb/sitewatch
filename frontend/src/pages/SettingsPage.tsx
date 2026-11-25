@@ -1,6 +1,6 @@
 import { useId, useState, type FormEvent } from 'react'
 import { ApiError } from '../api/client.ts'
-import type { NotificationSettings, TestAlertResult } from '../api/types.ts'
+import type { NotificationSettings, NotificationStatus, TestAlertResult } from '../api/types.ts'
 import { useAuth } from '../auth/AuthContext.ts'
 import { ErrorNotice } from '../components/ErrorNotice.tsx'
 import { useApi } from '../hooks/useApi.ts'
@@ -13,18 +13,19 @@ export function SettingsPage() {
 
   if (settings.loading) return <p className="empty" role="status">Loading…</p>
   if (!settings.data) return <ErrorNotice error={settings.error ?? new ApiError(0, 'Something went wrong')} onRetry={settings.reload} />
-  return <SettingsForm saved={settings.data} save={(next) => api.saveNotifications(next)} test={() => api.sendTestAlert()} />
+  return <SettingsForm saved={settings.data} save={(next) => api.saveNotifications(next)} test={() => api.sendTestAlert()} resend={() => api.resendVerification()} />
 }
 
 interface Props {
-  saved: NotificationSettings
+  saved: NotificationStatus
   save(settings: NotificationSettings): Promise<NotificationSettings>
   test(): Promise<TestAlertResult>
+  resend(): Promise<void>
 }
 
-function SettingsForm({ saved, save, test }: Props) {
+function SettingsForm({ saved, save, test, resend }: Props) {
   const id = useId()
-  const [current, setCurrent] = useState(saved)
+  const [current, setCurrent] = useState<NotificationSettings>(saved)
   const [emailAlerts, setEmailAlerts] = useState(saved.emailAlerts)
   const [chatId, setChatId] = useState(saved.telegramChatId ?? '')
   const [pending, setPending] = useState(false)
@@ -33,6 +34,8 @@ function SettingsForm({ saved, save, test }: Props) {
   const [testResult, setTestResult] = useState<TestAlertResult>()
   const [testError, setTestError] = useState<ApiError>()
   const [justSaved, setJustSaved] = useState(false)
+  const [resending, setResending] = useState(false)
+  const [resendNote, setResendNote] = useState<{ ok: boolean; text: string }>()
 
   const dirty = emailAlerts !== current.emailAlerts || chatId.trim() !== (current.telegramChatId ?? '')
 
@@ -66,6 +69,19 @@ function SettingsForm({ saved, save, test }: Props) {
     }
   }
 
+  const resendLink = async () => {
+    setResending(true)
+    setResendNote(undefined)
+    try {
+      await resend()
+      setResendNote({ ok: true, text: 'Link sent. Check your inbox (and spam).' })
+    } catch (e) {
+      setResendNote({ ok: false, text: e instanceof ApiError ? e.message : 'Something went wrong' })
+    } finally {
+      setResending(false)
+    }
+  }
+
   const fieldError = error?.fieldErrors.telegramChatId
   const generalError = error && Object.keys(error.fieldErrors).length === 0 ? error.message : undefined
 
@@ -75,6 +91,16 @@ function SettingsForm({ saved, save, test }: Props) {
       <p className="muted lead">
         You are alerted when a site fails two checks in a row, when it comes back, and once when its SSL certificate has less than 14 days left.
       </p>
+
+      {!saved.emailVerified && (
+        <div className="notice" role="status">
+          <span>Your email address is not confirmed yet, so email alerts are paused. Follow the link we emailed you.</span>
+          <span className="form-actions">
+            <button type="button" className="btn" onClick={resendLink} disabled={resending}>{resending ? 'Sending…' : 'Send the link again'}</button>
+            {resendNote && <span className={resendNote.ok ? 'saved' : 'form-error'} role={resendNote.ok ? 'status' : 'alert'}>{resendNote.text}</span>}
+          </span>
+        </div>
+      )}
 
       <form className="card form" onSubmit={submit} noValidate>
         <label className="check">

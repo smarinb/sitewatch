@@ -6,11 +6,13 @@ import { DashboardPage } from './pages/DashboardPage.tsx'
 import { LoginPage } from './pages/LoginPage.tsx'
 import { SettingsPage } from './pages/SettingsPage.tsx'
 import { SiteDetailPage } from './pages/SiteDetailPage.tsx'
+import { VerifyEmailPage } from './pages/VerifyEmailPage.tsx'
 
 export function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/verify-email" element={<VerifyEmailPage />} />
       <Route element={<RequireAuth />}>
         <Route element={<Layout />}>
           <Route index element={<DashboardPage />} />
