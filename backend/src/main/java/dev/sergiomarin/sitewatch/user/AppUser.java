@@ -32,6 +32,10 @@ public class AppUser {
     @Column(name = "telegram_chat_id", length = 32)
     private String telegramChatId;
 
+    /** When the owner proved the address by following the link we sent; {@code null} until then. */
+    @Column(name = "email_verified_at")
+    private Instant emailVerifiedAt;
+
     protected AppUser() {
     }
 
@@ -63,6 +67,16 @@ public class AppUser {
 
     public String getTelegramChatId() {
         return telegramChatId;
+    }
+
+    public boolean isEmailVerified() {
+        return emailVerifiedAt != null;
+    }
+
+    public void markEmailVerified() {
+        if (emailVerifiedAt == null) {
+            emailVerifiedAt = Instant.now();
+        }
     }
 
     public void updateNotifications(boolean emailAlerts, String telegramChatId) {

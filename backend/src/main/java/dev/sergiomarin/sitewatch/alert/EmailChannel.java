@@ -32,7 +32,13 @@ class EmailChannel implements AlertChannel {
 
     @Override
     public boolean enabledFor(AppUser user) {
-        return user.isEmailAlerts();
+        // An unconfirmed address could belong to someone else: never write to it.
+        return user.isEmailAlerts() && user.isEmailVerified();
+    }
+
+    @Override
+    public String disabledReason(AppUser user) {
+        return user.isEmailAlerts() ? "email address not verified" : "disabled";
     }
 
     @Override

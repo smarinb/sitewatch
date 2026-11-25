@@ -14,5 +14,10 @@ public interface AlertChannel {
     /** Whether this user wants alerts through this channel. */
     boolean enabledFor(AppUser user);
 
+    /** Why {@link #enabledFor} is false, for the test endpoint's response. */
+    default String disabledReason(AppUser user) {
+        return "disabled";
+    }
+
     void send(AppUser user, AlertMessage message) throws AlertDeliveryException;
 }

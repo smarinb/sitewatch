@@ -55,6 +55,11 @@ sitewatch:
     allow-private-addresses: false
     retention: 90d
     retention-cron: "0 30 3 * * *"   # daily at 03:30 server time
+  verification:
+    # Where the confirmation link points. Follows the CORS origin unless APP_URL says otherwise.
+    base-url: ${APP_URL:${CORS_ALLOWED_ORIGINS:http://localhost:5173}}
+    ttl: 24h
+    resend-interval: 1m
   alerts:
     failure-threshold: 2
     ssl-warning: 14d

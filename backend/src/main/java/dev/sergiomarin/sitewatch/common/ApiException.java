@@ -11,6 +11,14 @@ public class ApiException extends ErrorResponseException {
         super(status, ProblemDetail.forStatusAndDetail(status, detail), null);
     }
 
+    public static ApiException badRequest(String detail) {
+        return new ApiException(HttpStatus.BAD_REQUEST, detail);
+    }
+
+    public static ApiException tooManyRequests(String detail) {
+        return new ApiException(HttpStatus.TOO_MANY_REQUESTS, detail);
+    }
+
     public static ApiException notFound(String detail) {
         return new ApiException(HttpStatus.NOT_FOUND, detail);
     }

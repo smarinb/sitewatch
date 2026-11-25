@@ -33,13 +33,13 @@ public class NotificationController {
 
     @GetMapping
     @Transactional(readOnly = true)
-    public NotificationSettings get(@AuthenticationPrincipal Jwt jwt) {
+    public NotificationSettingsResponse get(@AuthenticationPrincipal Jwt jwt) {
         return toSettings(user(jwt));
     }
 
     @PutMapping
     @Transactional
-    public NotificationSettings update(@AuthenticationPrincipal Jwt jwt,
+    public NotificationSettingsResponse update(@AuthenticationPrincipal Jwt jwt,
             @Valid @RequestBody NotificationSettings settings) {
         AppUser user = user(jwt);
         user.updateNotifications(settings.emailAlerts(), settings.telegramChatId());
@@ -56,7 +56,7 @@ public class NotificationController {
         return users.findById(CurrentUser.id(jwt)).orElseThrow(() -> ApiException.notFound("User not found"));
     }
 
-    private static NotificationSettings toSettings(AppUser user) {
-        return new NotificationSettings(user.isEmailAlerts(), user.getTelegramChatId());
+    private static NotificationSettingsResponse toSettings(AppUser user) {
+        return new NotificationSettingsResponse(user.isEmailAlerts(), user.getTelegramChatId(), user.isEmailVerified());
     }
 }

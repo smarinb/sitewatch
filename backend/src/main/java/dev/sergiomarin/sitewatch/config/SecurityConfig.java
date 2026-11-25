@@ -30,7 +30,8 @@ public class SecurityConfig {
                         // Scraped by Alloy inside the compose network. The API port is never published and the
                         // proxy answers 404 for this path (see deploy/Caddyfile), so it is not reachable from outside.
                         .requestMatchers("/actuator/prometheus").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/auth/register", "/api/auth/login").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/auth/register", "/api/auth/login",
+                                "/api/auth/verify-email").permitAll()
                         .requestMatchers("/error").permitAll()
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(rs -> rs.jwt(Customizer.withDefaults()))

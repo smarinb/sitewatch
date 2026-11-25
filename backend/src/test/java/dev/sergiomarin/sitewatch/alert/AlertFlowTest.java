@@ -60,6 +60,9 @@ class AlertFlowTest extends IntegrationTest {
         server = TestServer.http().route("/", exchange -> TestServer.respond(exchange, siteStatus.get(), "page",
                 Map.of()));
         token = registerUser();
+        // Alert emails only go to confirmed addresses; this class is about alerts, not about confirming.
+        jdbc.update("UPDATE app_user SET email_verified_at = now()");
+        clearInvocations(mailSender);
     }
 
     @AfterEach

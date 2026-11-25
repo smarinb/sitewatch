@@ -52,7 +52,7 @@ public class AlertDispatcher {
             if (!channel.available()) {
                 outcome.put(channel.name(), "not configured on the server");
             } else if (!channel.enabledFor(user)) {
-                outcome.put(channel.name(), "disabled");
+                outcome.put(channel.name(), channel.disabledReason(user));
             } else {
                 outcome.put(channel.name(), deliver(channel, user, AlertMessage.test(), "TEST") ? "sent" : "failed");
             }

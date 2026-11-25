@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 import dev.sergiomarin.sitewatch.common.ApiException;
 import dev.sergiomarin.sitewatch.user.AppUser;
 import dev.sergiomarin.sitewatch.user.AppUserRepository;
+import dev.sergiomarin.sitewatch.verification.EmailVerificationService;
 
 @Service
 public class AuthService {
@@ -19,13 +20,16 @@ public class AuthService {
     private final AppUserRepository users;
     private final PasswordEncoder passwordEncoder;
     private final TokenService tokens;
+    private final EmailVerificationService verification;
     /** Hash compared against when the email is unknown, so both failure paths take the same time. */
     private final String dummyHash;
 
-    public AuthService(AppUserRepository users, PasswordEncoder passwordEncoder, TokenService tokens) {
+    public AuthService(AppUserRepository users, PasswordEncoder passwordEncoder, TokenService tokens,
+            EmailVerificationService verification) {
         this.users = users;
         this.passwordEncoder = passwordEncoder;
         this.tokens = tokens;
+        this.verification = verification;
         this.dummyHash = passwordEncoder.encode("timing-attack-mitigation");
     }
 
@@ -42,6 +46,7 @@ public class AuthService {
             // Lost a race against a concurrent registration with the same email.
             throw emailTaken();
         }
+        verification.request(user);
         return tokens.issue(user);
     }
 
