@@ -1,35 +1,37 @@
-# Sitewatch: panel web
+# Sitewatch: web panel
 
-React 19 + TypeScript + Vite. Se despliega como sitio estático en Cloudflare Pages.
+React 19 + TypeScript + Vite. Deployed as a static site on Cloudflare Pages.
 
 ```bash
 npm install
-npm run dev        # http://localhost:5173 (Vite hace de proxy de /api hacia localhost:8080)
+npm run dev        # http://localhost:5173 (Vite proxies /api to localhost:8080)
 npm test           # Vitest + Testing Library
 npm run lint       # oxlint
 npm run build      # tsc + vite build → dist/
 ```
 
-## Estructura
-| Carpeta | Contenido |
+## Structure
+| Folder | Contents |
 |---|---|
-| `src/api` | Cliente tipado de la API (`createApi`), errores `ApiError` (problem details) y tipos |
-| `src/auth` | Sesión JWT en `localStorage`, `AuthProvider`, guarda de rutas. Si la API responde 401, cierra la sesión |
-| `src/hooks` | `useApi`: carga datos, refresca cada 30 s y conserva la vista anterior mientras recarga |
-| `src/lib` | Funciones puras: escalas y segmentos de la gráfica, formatos, estadísticas (uptime, p95) |
-| `src/components` | `ResponseChart` (SVG propio, sin librería de gráficas), tabla equivalente, formulario de sitios… |
-| `src/pages` | Login/registro, lista de sitios, detalle con histórico y ajustes de alertas |
+| `src/api` | Typed API client (`createApi`), `ApiError` (problem details) and types |
+| `src/auth` | JWT session in `localStorage`, `AuthProvider`, route guard. On a 401 from the API it signs the user out |
+| `src/hooks` | `useApi`: loads data, refreshes every 30 s and keeps the previous view while reloading |
+| `src/lib` | Pure functions: chart scales and segments, formatting, statistics (uptime, p95) |
+| `src/components` | `ResponseChart` (own SVG, no chart library), the equivalent table, the site form… |
+| `src/pages` | Login, site list, detail with history, alert settings, and the page the email confirmation link opens |
 
-## Decisiones
-- **Gráfica en SVG a mano** en lugar de una librería: son ~200 líneas, pesa 0 KB extra y permite cursor con tooltip, teclado (flechas, Inicio, Fin, Esc) y vista de tabla con los mismos datos. Una caída continua se dibuja como una banda, no como un marcador por chequeo.
-- **El estado nunca va solo en color:** cada estado lleva icono y texto (Up, Down, Pending, Paused; certificado por caducar).
-- **Tema claro y oscuro** automático (`prefers-color-scheme`), con la paleta de la gráfica validada para ambos.
-- **Token JWT en `localStorage`.** Es la opción simple para una SPA estática en otro dominio que la API, y no hay cookies que proteger de CSRF. El riesgo es el XSS, por eso no se usa `dangerouslySetInnerHTML` y React escapa todo. El token caduca a las 24 h y no hay refresh: al caducar se vuelve al login.
+## Decisions
+- **A hand-drawn SVG chart** instead of a library: it is ~200 lines, adds 0 KB, and supports a cursor with tooltip, keyboard control (arrows, Home, End, Esc) and a table view with the same data. A continuous outage is drawn as a band, not as one marker per check.
+- **State is never only a colour:** every state has an icon and text (Up, Down, Pending, Paused; certificate about to expire).
+- **Automatic light and dark theme** (`prefers-color-scheme`), with the chart palette validated for both.
+- **JWT in `localStorage`.** It is the simple option for a static SPA on a different domain from the API, and there are no cookies to protect from CSRF. The risk is XSS, which is why `dangerouslySetInnerHTML` is never used and React escapes everything. The token expires after 24 h and there is no refresh: when it expires the user goes back to the login.
+- **The panel asks the server what to offer.** The login page reads `GET /api/auth/config`: on the public demo it hides sign-up and shows "Try the demo".
+- **Read-only demo mode.** Tokens of the demo account carry a `readOnly` claim; the panel then shows a banner and hides every control that changes data. The server enforces it too (it answers `403` to any write), so the UI is a convenience and never the protection.
 
-## Variables de entorno
-| Variable | Uso |
+## Environment variables
+| Variable | Use |
 |---|---|
-| `VITE_API_URL` | URL base de la API en producción (`https://monitor-api.sergiomarin.dev`). En desarrollo se deja vacía: el proxy de Vite evita CORS |
+| `VITE_API_URL` | Base URL of the API in production (`https://monitor-api.sergiomarin.dev`). Leave it empty in development: the Vite proxy avoids CORS |
 
 ## Cloudflare Pages
-Directorio raíz `frontend`, comando `npm run build`, salida `dist`, y `VITE_API_URL` como variable de entorno. `public/_redirects` reenvía las rutas del cliente (`/sites/3`) a `index.html`. En la API hay que poner `CORS_ALLOWED_ORIGINS=https://monitor.sergiomarin.dev`.
+Root directory `frontend`, command `npm run build`, output `dist`, and `VITE_API_URL` as an environment variable. `public/_redirects` forwards client routes (`/sites/3`) to `index.html`. On the API, set `CORS_ALLOWED_ORIGINS=https://monitor.sergiomarin.dev`.

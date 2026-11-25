@@ -2,7 +2,7 @@
 
 Monitor de sitios web y WordPress: uptime, tiempo de respuesta, caducidad de SSL y versión de WordPress, con alertas por email y Telegram. Proyecto de portfolio **que debe estar desplegado y accesible en vivo** en https://monitor.sergiomarin.dev.
 
-Idioma de trabajo con el usuario: español. Código, commits y nombres en inglés. README en español (más adelante habrá versión en inglés).
+Idioma de trabajo con el usuario: español. Código, commits y nombres en inglés. `README.md` en inglés (el que ve GitHub) y `README.es.md` en español, enlazados entre sí; `frontend/README.md` e `infra/terraform/README.md` solo en inglés.
 
 ## Decisiones tomadas
 - **Backend:** Java 21 + Spring Boot 4.2 (Maven wrapper). Elegido por demanda en Latam y EE. UU. Paquete base `dev.sergiomarin.sitewatch`.
@@ -37,7 +37,7 @@ Idioma de trabajo con el usuario: español. Código, commits y nombres en inglé
 
 ### Pendiente, en orden
 1. **Grafana**: decidir si se comparte un enlace público de solo lectura del panel (o solo una captura para el README) y **renovar el token antes del 2027-02-06** (si caduca, las métricas dejan de llegar sin aviso: crear otro en Access policies, subirlo a SSM con `aws ssm put-parameter --overwrite` y relanzar `deploy-api`).
-2. README en inglés y diagrama de arquitectura actualizado; limpieza de GitHub y ficha de WordPress freelance (ver `CLAUDE.local.md`).
+2. Limpieza de GitHub y ficha de WordPress freelance (ver `CLAUDE.local.md`). README en inglés/español y diagrama animado de arquitectura (`docs/architecture.svg`; el GIF para LinkedIn se generó fuera del repo) ya están hechos.
 3. Mejoras: rangos de 7/30 días (requiere agregar datos en el backend), i18n del panel.
 4. Fase 2: plugins vulnerables vía API de WPScan y página de estado pública.
 
