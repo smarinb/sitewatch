@@ -54,8 +54,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: ShellCheck the deploy script
-        run: shellcheck -S style deploy/deploy.sh
+      - name: ShellCheck the deploy and backup scripts
+        run: shellcheck -S style deploy/deploy.sh deploy/backup.sh
       - name: Validate the production compose file
         # The env files exist on the server; empty stand-ins are enough to check the file's structure.
         run: |

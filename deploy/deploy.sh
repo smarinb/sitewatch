@@ -27,9 +27,9 @@ log() { echo "[deploy $(date -u +%H:%M:%S)] $*"; }
 install -d -m 0755 "$dir"
 install -d -m 0700 "$dir/certs"
 
-log "Fetching the compose file, Caddyfile and Alloy config of $sha"
+log "Fetching the compose file, Caddyfile, Alloy config and backup files of $sha"
 raw="https://raw.githubusercontent.com/$repo/$sha/deploy"
-for file in docker-compose.prod.yml Caddyfile config.alloy; do
+for file in docker-compose.prod.yml Caddyfile config.alloy backup.sh sitewatch-backup.service sitewatch-backup.timer; do
   curl -fsSL --retry 3 --max-time 30 "$raw/$file" -o "$dir/$file.new"
   [ -s "$dir/$file.new" ] || { echo "$file is empty" >&2; exit 1; }
 done
@@ -58,6 +58,14 @@ IMAGE_TAG="$tag" docker compose --project-directory "$dir" -f "$dir/docker-compo
 mv "$dir/docker-compose.prod.yml.new" "$dir/docker-compose.yml"
 mv "$dir/Caddyfile.new" "$dir/Caddyfile"
 mv "$dir/config.alloy.new" "$dir/config.alloy"
+
+# The nightly database backup: script, unit and timer. Installed on every deploy so they follow the repository.
+install -m 0755 "$dir/backup.sh.new" /usr/local/bin/sitewatch-backup
+install -m 0644 "$dir/sitewatch-backup.service.new" /etc/systemd/system/sitewatch-backup.service
+install -m 0644 "$dir/sitewatch-backup.timer.new" /etc/systemd/system/sitewatch-backup.timer
+rm -f "$dir/backup.sh.new" "$dir/sitewatch-backup.service.new" "$dir/sitewatch-backup.timer.new"
+systemctl daemon-reload
+systemctl enable --now sitewatch-backup.timer
 
 previous="$(cat "$dir/current-tag" 2>/dev/null || true)"
 
