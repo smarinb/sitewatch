@@ -27,9 +27,9 @@ log() { echo "[deploy $(date -u +%H:%M:%S)] $*"; }
 install -d -m 0755 "$dir"
 install -d -m 0700 "$dir/certs"
 
-log "Fetching the compose file and Caddyfile of $sha"
+log "Fetching the compose file, Caddyfile and Alloy config of $sha"
 raw="https://raw.githubusercontent.com/$repo/$sha/deploy"
-for file in docker-compose.prod.yml Caddyfile; do
+for file in docker-compose.prod.yml Caddyfile config.alloy; do
   curl -fsSL --retry 3 --max-time 30 "$raw/$file" -o "$dir/$file.new"
   [ -s "$dir/$file.new" ] || { echo "$file is empty" >&2; exit 1; }
 done
@@ -57,6 +57,7 @@ IMAGE_TAG="$tag" docker compose --project-directory "$dir" -f "$dir/docker-compo
   --env-file "$dir/secrets.env" config -q
 mv "$dir/docker-compose.prod.yml.new" "$dir/docker-compose.yml"
 mv "$dir/Caddyfile.new" "$dir/Caddyfile"
+mv "$dir/config.alloy.new" "$dir/config.alloy"
 
 previous="$(cat "$dir/current-tag" 2>/dev/null || true)"
 

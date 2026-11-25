@@ -1,0 +1,25 @@
+// Grafana Alloy: reads the API's Prometheus metrics inside the compose network and ships them to Grafana Cloud.
+// The URL and the user are public identifiers; the access token comes from the environment (SSM, via secrets.env).
+
+prometheus.scrape "sitewatch_api" {
+  targets = [{
+    "__address__" = "api:8080",
+    "job"         = "sitewatch-api",
+    "instance"    = "sitewatch-prod",
+  }]
+  metrics_path    = "/actuator/prometheus"
+  scrape_interval = "60s"
+  scrape_timeout  = "15s"
+  forward_to      = [prometheus.remote_write.grafana_cloud.receiver]
+}
+
+prometheus.remote_write "grafana_cloud" {
+  endpoint {
+    url = "https://prometheus-prod-56-prod-us-east-2.grafana.net/api/prom/push"
+
+    basic_auth {
+      username = "3801432"
+      password = sys.env("GRAFANA_CLOUD_TOKEN")
+    }
+  }
+}

@@ -57,6 +57,25 @@ services:
       start_period: 90s
     mem_limit: 450m
 
+  # Reads the API's metrics inside this network and sends them to Grafana Cloud. Nothing listens outside.
+  alloy:
+    image: grafana/alloy:v1.10.0
+    restart: unless-stopped
+    command:
+      - run
+      - --server.http.listen-addr=127.0.0.1:12345
+      - --storage.path=/var/lib/alloy/data
+      - /etc/alloy/config.alloy
+    environment:
+      GRAFANA_CLOUD_TOKEN: ${GRAFANA_CLOUD_TOKEN:?GRAFANA_CLOUD_TOKEN is not set}
+    volumes:
+      - ./config.alloy:/etc/alloy/config.alloy:ro
+      - alloydata:/var/lib/alloy/data
+    depends_on:
+      api:
+        condition: service_healthy
+    mem_limit: 128m
+
   proxy:
     image: caddy:2-alpine
     restart: unless-stopped
@@ -74,3 +93,4 @@ services:
 
 volumes:
   pgdata:
+  alloydata:
