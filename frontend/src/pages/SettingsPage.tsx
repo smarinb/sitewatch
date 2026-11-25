@@ -8,12 +8,12 @@ import { usePageTitle } from '../hooks/usePageTitle.ts'
 
 export function SettingsPage() {
   usePageTitle('Alerts')
-  const { api } = useAuth()
+  const { api, readOnly } = useAuth()
   const settings = useApi((a) => a.getNotifications(), 'notifications')
 
   if (settings.loading) return <p className="empty" role="status">Loading…</p>
   if (!settings.data) return <ErrorNotice error={settings.error ?? new ApiError(0, 'Something went wrong')} onRetry={settings.reload} />
-  return <SettingsForm saved={settings.data} save={(next) => api.saveNotifications(next)} test={() => api.sendTestAlert()} resend={() => api.resendVerification()} />
+  return <SettingsForm saved={settings.data} save={(next) => api.saveNotifications(next)} test={() => api.sendTestAlert()} resend={() => api.resendVerification()} readOnly={readOnly} />
 }
 
 interface Props {
@@ -21,9 +21,11 @@ interface Props {
   save(settings: NotificationSettings): Promise<NotificationSettings>
   test(): Promise<TestAlertResult>
   resend(): Promise<void>
+  /** The demo account: the settings are shown but cannot be changed. */
+  readOnly: boolean
 }
 
-function SettingsForm({ saved, save, test, resend }: Props) {
+function SettingsForm({ saved, save, test, resend, readOnly }: Props) {
   const id = useId()
   const [current, setCurrent] = useState<NotificationSettings>(saved)
   const [emailAlerts, setEmailAlerts] = useState(saved.emailAlerts)
@@ -104,13 +106,13 @@ function SettingsForm({ saved, save, test, resend }: Props) {
 
       <form className="card form" onSubmit={submit} noValidate>
         <label className="check">
-          <input type="checkbox" checked={emailAlerts} onChange={(e) => { setEmailAlerts(e.target.checked); setJustSaved(false) }} />
+          <input type="checkbox" checked={emailAlerts} disabled={readOnly} onChange={(e) => { setEmailAlerts(e.target.checked); setJustSaved(false) }} />
           Email alerts to your account address
         </label>
 
         <div className="field">
           <label htmlFor={`${id}-chat`}>Telegram chat id</label>
-          <input id={`${id}-chat`} value={chatId} onChange={(e) => { setChatId(e.target.value); setJustSaved(false) }} inputMode="numeric" autoComplete="off" placeholder="Leave empty to turn Telegram off" aria-invalid={!!fieldError} aria-describedby={`${id}-chat-hint`} />
+          <input id={`${id}-chat`} disabled={readOnly} value={chatId} onChange={(e) => { setChatId(e.target.value); setJustSaved(false) }} inputMode="numeric" autoComplete="off" placeholder="Leave empty to turn Telegram off" aria-invalid={!!fieldError} aria-describedby={`${id}-chat-hint`} />
           {fieldError && <p className="field-error">{fieldError}</p>}
           <p id={`${id}-chat-hint`} className="field-hint">
             Open a chat with the Sitewatch bot and press Start, then paste your numeric chat id here.
@@ -128,7 +130,7 @@ function SettingsForm({ saved, save, test, resend }: Props) {
         <h2 id={`${id}-test`}>Send a test alert</h2>
         <p className="muted">Sends a message through every channel you enabled, so you know alerts reach you.</p>
         <div className="form-actions">
-          <button type="button" className="btn" onClick={sendTest} disabled={testing || dirty}>{testing ? 'Sending…' : 'Send test alert'}</button>
+          <button type="button" className="btn" onClick={sendTest} disabled={testing || dirty || readOnly}>{testing ? 'Sending…' : 'Send test alert'}</button>
           {dirty && <span className="muted small">Save your changes first.</span>}
         </div>
         {testError && <p className="form-error" role="alert">{testError.message}</p>}

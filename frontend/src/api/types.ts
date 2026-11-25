@@ -44,6 +44,12 @@ export interface Credentials {
   password: string
 }
 
+/** What the login page may offer, from GET /api/auth/config. */
+export interface AuthConfig {
+  registrationOpen: boolean
+  demoAvailable: boolean
+}
+
 export interface NotificationSettings {
   emailAlerts: boolean
   telegramChatId: string | null

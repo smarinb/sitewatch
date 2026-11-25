@@ -15,7 +15,7 @@ import { useAuth } from '../auth/AuthContext.ts'
 const REFRESH_MS = 30_000
 
 export function DashboardPage() {
-  const { api } = useAuth()
+  const { api, readOnly } = useAuth()
   const sites = useApi((a) => a.listSites(), 'sites', { refreshMs: REFRESH_MS })
   const latest = useApi((a) => a.latestChecks(), 'latest-checks', { refreshMs: REFRESH_MS })
   const [adding, setAdding] = useState(false)
@@ -35,7 +35,7 @@ export function DashboardPage() {
     <>
       <div className="page-head">
         <h1>Sites</h1>
-        {!adding && <button type="button" className="btn btn-primary" onClick={() => setAdding(true)}>Add site</button>}
+        {!adding && !readOnly && <button type="button" className="btn btn-primary" onClick={() => setAdding(true)}>Add site</button>}
       </div>
 
       {adding && (
@@ -66,7 +66,7 @@ export function DashboardPage() {
           <div className="card empty-card">
             <h2>No sites yet</h2>
             <p>Add a site and Sitewatch starts checking it within a minute. You get an alert if it goes down.</p>
-            <button type="button" className="btn btn-primary" onClick={() => setAdding(true)}>Add your first site</button>
+            {!readOnly && <button type="button" className="btn btn-primary" onClick={() => setAdding(true)}>Add your first site</button>}
           </div>
         )
       ) : (

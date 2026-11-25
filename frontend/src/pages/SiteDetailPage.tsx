@@ -26,7 +26,7 @@ const HISTORY_LIMIT = 500
 
 export function SiteDetailPage() {
   const siteId = Number(useParams().id)
-  const { api } = useAuth()
+  const { api, readOnly } = useAuth()
   const navigate = useNavigate()
   const [rangeKey, setRangeKey] = useState<RangeKey>('24h')
   const [view, setView] = useState<'chart' | 'table'>('chart')
@@ -75,7 +75,7 @@ export function SiteDetailPage() {
           <h1>{data.name} <StatusBadge site={data} /></h1>
           <p className="muted"><a href={data.url} target="_blank" rel="noreferrer">{data.url}</a> · checked every {data.checkIntervalMinutes} min</p>
         </div>
-        {!editing && !confirmingDelete && (
+        {!editing && !confirmingDelete && !readOnly && (
           <div className="head-actions">
             <button type="button" className="btn" onClick={() => setEditing(true)}>Edit</button>
             <button type="button" className="btn btn-danger" onClick={() => setConfirmingDelete(true)}>Delete</button>

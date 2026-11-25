@@ -1,20 +1,27 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { Navigate, useLocation } from 'react-router'
 import { ApiError } from '../api/client.ts'
+import type { AuthConfig } from '../api/types.ts'
 import { useAuth } from '../auth/AuthContext.ts'
 import { usePageTitle } from '../hooks/usePageTitle.ts'
 
 type Mode = 'login' | 'register'
 
 export function LoginPage() {
-  const { email: signedIn, login, register } = useAuth()
+  const { email: signedIn, api, login, register, loginDemo } = useAuth()
   const location = useLocation()
   const [mode, setMode] = useState<Mode>('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<ApiError>()
+  /** What this deployment offers; unknown until the server answers. */
+  const [config, setConfig] = useState<AuthConfig>()
   usePageTitle(mode === 'login' ? 'Sign in' : 'Create account')
+
+  useEffect(() => {
+    api.authConfig().then(setConfig, () => setConfig({ registrationOpen: false, demoAvailable: false }))
+  }, [api])
 
   if (signedIn) {
     const from = (location.state as { from?: string } | null)?.from
@@ -33,6 +40,17 @@ export function LoginPage() {
     }
   }
 
+  const tryDemo = async () => {
+    setPending(true)
+    setError(undefined)
+    try {
+      await loginDemo()
+    } catch (e) {
+      setError(e instanceof ApiError ? e : new ApiError(0, 'Something went wrong'))
+      setPending(false)
+    }
+  }
+
   const fieldError = (field: string) => error?.fieldErrors[field]
   const generalError = error && Object.keys(error.fieldErrors).length === 0 ? error.message : undefined
   const creating = mode === 'register'
@@ -44,6 +62,13 @@ export function LoginPage() {
         <h1>Sitewatch</h1>
         <p>Uptime, response time, SSL expiry and WordPress version for your sites, with alerts by email and Telegram.</p>
       </div>
+      {config?.demoAvailable && (
+        <section className="card form auth-form" aria-labelledby="demo-title">
+          <h2 id="demo-title">Just looking?</h2>
+          <p className="muted">Explore a read-only account with example sites, charts and alert settings.</p>
+          <button type="button" className="btn btn-primary btn-block" onClick={tryDemo} disabled={pending}>Try the demo</button>
+        </section>
+      )}
       <form className="card form auth-form" onSubmit={submit} noValidate>
         <h2>{creating ? 'Create your account' : 'Sign in'}</h2>
         <div className="field">
@@ -60,12 +85,15 @@ export function LoginPage() {
         <button type="submit" className="btn btn-primary btn-block" disabled={pending}>
           {pending ? 'Please wait…' : creating ? 'Create account' : 'Sign in'}
         </button>
-        <p className="auth-switch">
-          {creating ? 'Already have an account?' : 'New here?'}{' '}
-          <button type="button" className="link-button" onClick={() => { setMode(creating ? 'login' : 'register'); setError(undefined) }}>
-            {creating ? 'Sign in' : 'Create an account'}
-          </button>
-        </p>
+        {config?.registrationOpen && (
+          <p className="auth-switch">
+            {creating ? 'Already have an account?' : 'New here?'}{' '}
+            <button type="button" className="link-button" onClick={() => { setMode(creating ? 'login' : 'register'); setError(undefined) }}>
+              {creating ? 'Sign in' : 'Create an account'}
+            </button>
+          </p>
+        )}
+        {config && !config.registrationOpen && <p className="auth-switch">Sign-ups are closed on this public demo.</p>}
       </form>
     </div>
   )

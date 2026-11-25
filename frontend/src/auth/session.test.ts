@@ -11,6 +11,11 @@ describe('session', () => {
     expect(session!.expiresAt).toBeLessThanOrEqual(Date.now() + 600_000)
   })
 
+  it('reads the read-only claim of the demo account, and defaults to a normal session', () => {
+    expect(parseSession(fakeJwt('demo@example.com', 600, { readOnly: true }))?.readOnly).toBe(true)
+    expect(parseSession(fakeJwt('ana@example.com', 600))?.readOnly).toBe(false)
+  })
+
   it.each(['', 'garbage', 'a.b.c', 'a.%%%.c'])('rejects a malformed token (%j)', (token) => {
     expect(parseSession(token)).toBeNull()
   })

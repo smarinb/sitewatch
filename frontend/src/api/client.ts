@@ -1,4 +1,5 @@
 import type {
+  AuthConfig,
   Check,
   Credentials,
   LatestCheck,
@@ -36,6 +37,9 @@ interface RequestOptions {
 export interface Api {
   register(credentials: Credentials): Promise<TokenResponse>
   login(credentials: Credentials): Promise<TokenResponse>
+  authConfig(): Promise<AuthConfig>
+  /** Signs in as the read-only demo account, without a password. */
+  loginDemo(): Promise<TokenResponse>
   listSites(): Promise<Site[]>
   getSite(id: number): Promise<Site>
   createSite(input: SiteInput): Promise<Site>
@@ -94,6 +98,8 @@ export function createApi(getToken: () => string | null, onUnauthorized: () => v
   return {
     register: (credentials) => request('/api/auth/register', { method: 'POST', body: credentials }),
     login: (credentials) => request('/api/auth/login', { method: 'POST', body: credentials }),
+    authConfig: () => request('/api/auth/config'),
+    loginDemo: () => request('/api/auth/demo', { method: 'POST' }),
     listSites: () => request('/api/sites'),
     getSite: (id) => request(`/api/sites/${id}`),
     createSite: (input) => request('/api/sites', { method: 'POST', body: input }),

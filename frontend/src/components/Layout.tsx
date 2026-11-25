@@ -2,7 +2,7 @@ import { NavLink, Outlet } from 'react-router'
 import { useAuth } from '../auth/AuthContext.ts'
 
 export function Layout() {
-  const { email, logout } = useAuth()
+  const { email, readOnly, logout } = useAuth()
   return (
     <>
       <a className="skip-link" href="#main">Skip to content</a>
@@ -23,6 +23,11 @@ export function Layout() {
         </div>
       </header>
       <main id="main" className="container main">
+        {readOnly && (
+          <div className="notice" role="status">
+            <span><strong>Read-only demo.</strong> You can look around; changes are turned off.</span>
+          </div>
+        )}
         <Outlet />
       </main>
       <footer className="container footer">

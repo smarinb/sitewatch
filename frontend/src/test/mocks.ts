@@ -5,13 +5,13 @@ const base64Url = (value: unknown) =>
   btoa(JSON.stringify(value)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
 
 /** An unsigned token with the claims the UI reads. The server, not the UI, validates signatures. */
-export function fakeJwt(email = 'demo@example.com', ttlSeconds = 3600): string {
+export function fakeJwt(email = 'demo@example.com', ttlSeconds = 3600, extraClaims: Record<string, unknown> = {}): string {
   const exp = Math.floor(Date.now() / 1000) + ttlSeconds
-  return `${base64Url({ alg: 'HS256' })}.${base64Url({ sub: '1', email, exp })}.signature`
+  return `${base64Url({ alg: 'HS256' })}.${base64Url({ sub: '1', email, exp, ...extraClaims })}.signature`
 }
 
-export function signIn(email = 'demo@example.com') {
-  localStorage.setItem('sitewatch.token', fakeJwt(email))
+export function signIn(email = 'demo@example.com', extraClaims: Record<string, unknown> = {}) {
+  localStorage.setItem('sitewatch.token', fakeJwt(email, 3600, extraClaims))
 }
 
 interface MockRequest {

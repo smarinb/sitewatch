@@ -44,11 +44,12 @@ describe('authentication', () => {
   it('registers a new account and shows server-side field errors', async () => {
     const user = userEvent.setup()
     mockApi({
+      'GET /api/auth/config': { json: { registrationOpen: true, demoAvailable: false } },
       'POST /api/auth/register': { status: 400, json: { detail: 'Validation failed', errors: { email: 'must be a well-formed email address' } } },
     })
 
     renderApp('/login')
-    await user.click(screen.getByRole('button', { name: 'Create an account' }))
+    await user.click(await screen.findByRole('button', { name: 'Create an account' }))
     expect(screen.getByRole('heading', { name: 'Create your account' })).toBeInTheDocument()
     expect(screen.getByText('At least 8 characters.')).toBeInTheDocument()
     await user.type(screen.getByLabelText('Email'), 'nope')
@@ -91,5 +92,34 @@ describe('authentication', () => {
 
     expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument()
     expect(localStorage.getItem('sitewatch.token')).toBeNull()
+  })
+
+  it('offers the read-only demo and no sign-up when the deployment is a public demo', async () => {
+    const user = userEvent.setup()
+    const mock = mockApi({
+      'GET /api/auth/config': { json: { registrationOpen: false, demoAvailable: true } },
+      'POST /api/auth/demo': { json: { accessToken: fakeJwt('demo@sergiomarin.dev', 3600, { readOnly: true }), tokenType: 'Bearer', expiresAt: '' } },
+      'GET /api/sites': { json: [] },
+      'GET /api/checks/latest': { json: [] },
+    })
+
+    renderApp('/login')
+    expect(await screen.findByText('Sign-ups are closed on this public demo.')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Create an account' })).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Try the demo' }))
+
+    expect(await screen.findByRole('heading', { name: 'Sites' })).toBeInTheDocument()
+    expect(screen.getByText(/Read-only demo/)).toBeInTheDocument()
+    expect(bodiesSentTo(mock, 'POST /api/auth/demo')).toHaveLength(1)
+  })
+
+  it('keeps sign-up and shows no demo button when the server offers neither', async () => {
+    mockApi({ 'GET /api/auth/config': { json: { registrationOpen: true, demoAvailable: false } } })
+
+    renderApp('/login')
+
+    expect(await screen.findByRole('button', { name: 'Create an account' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Try the demo' })).not.toBeInTheDocument()
   })
 })

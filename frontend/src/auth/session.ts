@@ -3,6 +3,8 @@ const STORAGE_KEY = 'sitewatch.token'
 export interface Session {
   token: string
   email: string
+  /** The demo account: the server refuses every change, so the UI hides the controls. */
+  readOnly: boolean
   /** Epoch milliseconds. */
   expiresAt: number
 }
@@ -14,9 +16,9 @@ export function parseSession(token: string): Session | null {
     if (!payload) return null
     const base64 = payload.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(payload.length / 4) * 4, '=')
     const bytes = Uint8Array.from(atob(base64), (char) => char.charCodeAt(0))
-    const claims = JSON.parse(new TextDecoder().decode(bytes)) as { exp?: number; email?: string }
+    const claims = JSON.parse(new TextDecoder().decode(bytes)) as { exp?: number; email?: string; readOnly?: boolean }
     if (typeof claims.exp !== 'number' || typeof claims.email !== 'string') return null
-    return { token, email: claims.email, expiresAt: claims.exp * 1000 }
+    return { token, email: claims.email, readOnly: claims.readOnly === true, expiresAt: claims.exp * 1000 }
   } catch {
     return null
   }
