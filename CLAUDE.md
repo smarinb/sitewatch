@@ -31,14 +31,14 @@ Idioma de trabajo con el usuario: español. Código, commits y nombres en inglé
 - **Alertas probadas en producción** el 2026-11-25: email por SES y Telegram (`TELEGRAM_BOT_TOKEN` en SSM) llegan con `/api/me/notifications/test`. Cuenta de Sergio creada en producción (credenciales en `~/.config/sitewatch/prod-account.env`).
 - **Cuenta de demostración creada en producción** (`demo@sergiomarin.dev`, alertas por email desactivadas, contraseña en `~/.config/sitewatch/demo-account.env`) con 8 sitios: portfolio, mochileandosinbarreras.com, atiro.es, tienda.atiro.es (WooCommerce), delesiele.com, hilandana.es (con permiso de su dueña), el panel y el health de la API. Todos UP y con versión de WordPress detectada donde aplica. Falta decidir si se publican las credenciales en el README.
 - **Métricas en Grafana Cloud (plan gratuito, stack `calmkumquat475`, región us-east-2)** desde el 2026-11-25: Grafana Alloy (contenedor `alloy`, 128 MB, usa ~43) lee `api:8080/actuator/prometheus` dentro de la red de Docker cada 60 s y lo envía por remote write (`deploy/config.alloy`). Token en SSM (`/sitewatch/env/GRAFANA_CLOUD_TOKEN`; el compose lo exige). `/actuator/prometheus` ya no pide JWT en la API (la ruta no está publicada y Caddy responde 404 desde fuera; lo cubre `MetricsEndpointTest`). Comprobado con `up{job="sitewatch-api"}` = 1. El panel está en `deploy/grafana/sitewatch-dashboard.json` (se importa en Dashboards → New → Import; usa una variable de fuente de datos). El token antiguo se revocó; el nuevo **caduca el 2027-02-06**.
+- **Copias y estado de Terraform en S3** (2026-11-25): temporizador de systemd (03:00 UTC) que vuelca PostgreSQL a `sitewatch-backups-<cuenta>` (30 días; la EC2 solo puede escribir). Restauración probada. El estado de Terraform está en `sitewatch-tfstate-<cuenta>` (`backend.hcl` ignorado por git; el local anterior quedó en `~/.config/sitewatch/tfstate-before-s3.bak`). Detalle en `infra/terraform/README.md`.
 
 ### Pendiente, en orden
 1. **Grafana**: decidir si se comparte un enlace público de solo lectura del panel (o solo una captura para el README) y **renovar el token antes del 2027-02-06** (si caduca, las métricas dejan de llegar sin aviso: crear otro en Access policies, subirlo a SSM con `aws ssm put-parameter --overwrite` y relanzar `deploy-api`).
 2. **Verificación de email en el registro** y solo después pedir a AWS que saque SES del sandbox (hoy cualquiera podría registrar el correo de otra persona).
-3. **Copias de seguridad** de PostgreSQL (a S3) y mover el **estado de Terraform** (hoy local, con secretos) a un backend S3 cifrado.
-4. README en inglés y diagrama de arquitectura actualizado; limpieza de GitHub y ficha de WordPress freelance (ver `CLAUDE.local.md`).
-5. Mejoras: rangos de 7/30 días (requiere agregar datos en el backend), límite de intentos de login, i18n del panel.
-6. Fase 2: plugins vulnerables vía API de WPScan y página de estado pública.
+3. README en inglés y diagrama de arquitectura actualizado; limpieza de GitHub y ficha de WordPress freelance (ver `CLAUDE.local.md`).
+4. Mejoras: rangos de 7/30 días (requiere agregar datos en el backend), límite de intentos de login, i18n del panel.
+5. Fase 2: plugins vulnerables vía API de WPScan y página de estado pública.
 
 ### Lecciones (no repetir)
 - **El host de la API tiene un solo nivel** bajo la zona: el certificado gratuito de Cloudflare (Universal SSL) cubre `dominio` y `*.dominio`; en un nombre de segundo nivel todo apretón TLS falla en el borde aunque el servidor esté sano.

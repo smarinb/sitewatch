@@ -80,3 +80,18 @@ Después de aplicar:
 
 ## SES y el *sandbox*
 Una cuenta nueva solo puede enviar a direcciones verificadas y 200 emails al día. Es suficiente para tus propias alertas. Para escribir a cualquier usuario hay que pedir acceso a producción a AWS, y antes conviene verificar el email en el registro de la aplicación: ahora mismo cualquiera podría dar de alta el correo de otra persona y hacer que SES le envíe alertas, y los rebotes o quejas pueden hacer que AWS suspenda el envío.
+
+## Backups and Terraform state
+
+- **State**: lives in the `sitewatch-tfstate-<account>` bucket (encrypted, versioned, locked with a lock file). Copy
+  `backend.hcl.example` to `backend.hcl` with that bucket name and run `terraform init -backend-config=backend.hcl`.
+- **Database**: a systemd timer (`sitewatch-backup.timer`, 03:00 UTC) runs `deploy/backup.sh`, which streams
+  `pg_dump` to `s3://sitewatch-backups-<account>/postgres/`. Dumps are kept 30 days. The instance role can only add
+  objects there, so a compromised server cannot read or delete past backups.
+- **Restore** (from a machine with admin access; try it on a scratch database first):
+  ```bash
+  aws s3 ls s3://sitewatch-backups-<account>/postgres/
+  aws s3 cp s3://sitewatch-backups-<account>/postgres/<file>.dump .
+  docker exec -i sitewatch-db-1 pg_restore -U sitewatch -d sitewatch --clean --if-exists --no-owner < <file>.dump
+  ```
+  A restore into an empty PostgreSQL 17 was verified on 2026-11-25 (users, sites, checks and Flyway history intact).
