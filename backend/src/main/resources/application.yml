@@ -55,8 +55,15 @@ sitewatch:
     allow-private-addresses: false
     retention: 90d
     retention-cron: "0 30 3 * * *"   # daily at 03:30 server time
-  verification:
-    # Where the confirmation link points. Follows the CORS origin unless APP_URL says otherwise.
+  access:
+    # Public demo: REGISTRATION_ENABLED=false closes sign-up, DEMO_EMAIL names the read-only account that
+    # the "Try the demo" button signs in as.
+    registration-enabled: ${REGISTRATION_ENABLED:true}
+    demo-email: ${DEMO_EMAIL:}
+    max-sites-per-user: 10
+    login-max-failures: 5
+    login-lockout: 15m
+  verification:    # Where the confirmation link points. Follows the CORS origin unless APP_URL says otherwise.
     base-url: ${APP_URL:${CORS_ALLOWED_ORIGINS:http://localhost:5173}}
     ttl: 24h
     resend-interval: 1m

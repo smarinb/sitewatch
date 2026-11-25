@@ -14,7 +14,7 @@ import dev.sergiomarin.sitewatch.common.HttpUrl;
 public record SiteRequest(
         @NotBlank @Size(max = 120) String name,
         @NotBlank @Size(max = 2048) @HttpUrl String url,
-        @Min(1) @Max(1440) Integer checkIntervalMinutes,
+        @Min(5) @Max(1440) Integer checkIntervalMinutes,
         Boolean active) {
 
     static final int DEFAULT_INTERVAL_MINUTES = 5;

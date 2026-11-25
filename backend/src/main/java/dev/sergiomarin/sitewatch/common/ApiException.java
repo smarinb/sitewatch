@@ -11,6 +11,10 @@ public class ApiException extends ErrorResponseException {
         super(status, ProblemDetail.forStatusAndDetail(status, detail), null);
     }
 
+    public static ApiException forbidden(String detail) {
+        return new ApiException(HttpStatus.FORBIDDEN, detail);
+    }
+
     public static ApiException badRequest(String detail) {
         return new ApiException(HttpStatus.BAD_REQUEST, detail);
     }

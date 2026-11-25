@@ -6,6 +6,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import dev.sergiomarin.sitewatch.auth.AccessProperties;
 import dev.sergiomarin.sitewatch.common.ApiException;
 import dev.sergiomarin.sitewatch.user.AppUserRepository;
 
@@ -18,10 +19,12 @@ public class SiteService {
 
     private final SiteRepository sites;
     private final AppUserRepository users;
+    private final AccessProperties access;
 
-    public SiteService(SiteRepository sites, AppUserRepository users) {
+    public SiteService(SiteRepository sites, AppUserRepository users, AccessProperties access) {
         this.sites = sites;
         this.users = users;
+        this.access = access;
     }
 
     @Transactional(readOnly = true)
@@ -39,6 +42,9 @@ public class SiteService {
         String url = request.url().trim();
         if (sites.existsByOwnerIdAndUrl(ownerId, url)) {
             throw duplicateUrl();
+        }
+        if (sites.countByOwnerId(ownerId) >= access.maxSitesPerUser()) {
+            throw ApiException.conflict("You can monitor at most " + access.maxSitesPerUser() + " sites");
         }
         Site site = new Site(users.getReferenceById(ownerId), request.name().trim(), url,
                 request.intervalOrDefault(), request.activeOrDefault());

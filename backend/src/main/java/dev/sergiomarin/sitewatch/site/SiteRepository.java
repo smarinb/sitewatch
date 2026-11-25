@@ -12,6 +12,8 @@ public interface SiteRepository extends JpaRepository<Site, Long> {
 
     Optional<Site> findByIdAndOwnerId(Long id, Long ownerId);
 
+    long countByOwnerId(Long ownerId);
+
     boolean existsByOwnerIdAndUrl(Long ownerId, String url);
 
     boolean existsByOwnerIdAndUrlAndIdNot(Long ownerId, String url, Long id);

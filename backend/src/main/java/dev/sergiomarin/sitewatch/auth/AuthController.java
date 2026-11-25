@@ -17,9 +17,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
     private final AuthService authService;
+    private final AccessProperties access;
 
-    public AuthController(AuthService authService) {
+    public AuthController(AuthService authService, AccessProperties access) {
         this.authService = authService;
+        this.access = access;
     }
 
     @PostMapping("/register")
@@ -31,6 +33,20 @@ public class AuthController {
     @PostMapping("/login")
     public TokenResponse login(@Valid @RequestBody AuthRequest request) {
         return authService.login(request);
+    }
+
+    /** What the login page needs to know before showing its options. Public. */
+    @GetMapping("/config")
+    public AuthConfig config() {
+        return new AuthConfig(access.registrationEnabled(), authService.demoAvailable());
+    }
+
+    @PostMapping("/demo")
+    public TokenResponse demo() {
+        return authService.demo();
+    }
+
+    public record AuthConfig(boolean registrationOpen, boolean demoAvailable) {
     }
 
     @GetMapping("/me")

@@ -18,22 +18,27 @@ public class TokenService {
 
     private final JwtEncoder encoder;
     private final JwtProperties properties;
+    private final AccessProperties access;
 
-    public TokenService(JwtEncoder encoder, JwtProperties properties) {
+    public TokenService(JwtEncoder encoder, JwtProperties properties, AccessProperties access) {
         this.encoder = encoder;
         this.properties = properties;
+        this.access = access;
     }
 
     public TokenResponse issue(AppUser user) {
         Instant now = Instant.now();
         Instant expiresAt = now.plus(properties.ttl());
-        JwtClaimsSet claims = JwtClaimsSet.builder()
+        JwtClaimsSet.Builder builder = JwtClaimsSet.builder()
                 .issuer(properties.issuer())
                 .subject(user.getId().toString())
                 .issuedAt(now)
                 .expiresAt(expiresAt)
-                .claim("email", user.getEmail())
-                .build();
+                .claim("email", user.getEmail());
+        if (access.isDemo(user.getEmail())) {
+            builder.claim("readOnly", true);
+        }
+        JwtClaimsSet claims = builder.build();
         JwsHeader header = JwsHeader.with(MacAlgorithm.HS256).build();
         String token = encoder.encode(JwtEncoderParameters.from(header, claims)).getTokenValue();
         return TokenResponse.bearer(token, expiresAt);
