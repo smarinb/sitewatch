@@ -1,5 +1,9 @@
 terraform {
-  required_version = ">= 1.9"
+  required_version = ">= 1.10"
+
+  # The state lives in S3. The bucket name carries the AWS account id, so it is not written here:
+  #   terraform init -backend-config=backend.hcl        (see backend.hcl.example)
+  backend "s3" {}
 
   required_providers {
     aws        = { source = "hashicorp/aws", version = "~> 6.0" }

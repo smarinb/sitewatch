@@ -141,3 +141,9 @@ variable "enable_budget" {
   type        = bool
   default     = false
 }
+
+variable "backup_retention_days" {
+  description = "Days a PostgreSQL dump is kept in S3 before the lifecycle rule deletes it."
+  type        = number
+  default     = 30
+}

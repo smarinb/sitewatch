@@ -1,0 +1,6 @@
+# Copy to backend.hcl (ignored by git). The bucket is the "state_bucket" output of the first apply.
+bucket       = "sitewatch-tfstate-123456789012"
+key          = "sitewatch/terraform.tfstate"
+region       = "us-east-1"
+encrypt      = true
+use_lockfile = true

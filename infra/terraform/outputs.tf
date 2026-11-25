@@ -43,3 +43,13 @@ output "github_deploy_role_arn" {
   description = "Role the deploy workflow assumes through OIDC."
   value       = aws_iam_role.github_deploy.arn
 }
+
+output "backup_bucket" {
+  description = "S3 bucket that receives the nightly PostgreSQL dumps."
+  value       = aws_s3_bucket.this["backups"].bucket
+}
+
+output "state_bucket" {
+  description = "S3 bucket for the Terraform state (see backend.hcl.example)."
+  value       = aws_s3_bucket.this["tfstate"].bucket
+}

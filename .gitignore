@@ -9,6 +9,7 @@
 .terraform/
 *.tfvars
 !*.tfvars.example
+backend.hcl
 
 # Claude Code private context
 CLAUDE.local.md
