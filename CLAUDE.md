@@ -25,22 +25,19 @@ Idioma de trabajo con el usuario: español. Código, commits y nombres en inglé
 - **Despliegue**: `deploy/docker-compose.prod.yml` (PostgreSQL + API + Caddy; solo el proxy publica el 443), `deploy/deploy.sh` (valida argumentos, compose del commit exacto, secretos y certificado desde SSM, `up --wait`, rollback) y jobs de CD en `ci.yml` (imagen a GHCR → SSM por OIDC → comprobación por Cloudflare → panel a Pages), activos con la variable `DEPLOY_ENABLED=true`. **Cada push a `main` que pasa el CI despliega.** El primer despliegue ya corrió bien en la EC2 (contenedores sanos).
 
 ### Dónde nos quedamos (2026-11-25)
-- **La API pública aún no responde** porque su nombre original, `api.monitor.sergiomarin.dev`, no tiene certificado en el borde de Cloudflare (ver lecciones). Se decidió **`monitor-api.sergiomarin.dev`** y el cambio está en el commit local `030a027`, **sin subir**.
-- **Plan de Terraform para ese cambio, sin aplicar** (2 crear, 3 cambiar, 2 destruir: el certificado y su CSR se reemplazan; no toca la EC2, la IP, SES ni Pages). El fichero del plan guardado está en un directorio temporal y puede haber desaparecido: hay que volver a planificar.
-- **Orden correcto**: primero `terraform apply` (así el certificado nuevo ya está en SSM) y después `git push` (relanza el despliegue). Luego comprobar `https://monitor-api.sergiomarin.dev/actuator/health` y `https://monitor.sergiomarin.dev`.
+- **Sitewatch está en vivo.** La API vive en `monitor-api.sergiomarin.dev` (un nivel bajo la zona, ver lecciones): `/actuator/health` responde 200 `UP` y el panel carga en `monitor.sergiomarin.dev`. El despliegue de punta a punta (CI → GHCR → SSM → Pages) pasó el 2026-11-25 tras aplicar el cambio de nombre y subirlo.
+- **Presupuesto de AWS activo** (20 USD/mes, solo `Project=sitewatch`; avisa por email al 80 % real y al 100 % previsto). La etiqueta se activó en Billing el 2026-11-25; sus datos pueden tardar ~24 h.
+- **SES verificado** (identidad, DKIM y MAIL FROM en `SUCCESS`). Sigue en sandbox.
+- **Alertas probadas en producción** el 2026-11-25: email por SES y Telegram (`TELEGRAM_BOT_TOKEN` en SSM) llegan con `/api/me/notifications/test`. Cuenta de Sergio creada en producción (credenciales en `~/.config/sitewatch/prod-account.env`).
+- **Cuenta de demostración creada en producción** (`demo@sergiomarin.dev`, alertas por email desactivadas, contraseña en `~/.config/sitewatch/demo-account.env`) con 8 sitios: portfolio, mochileandosinbarreras.com, atiro.es, tienda.atiro.es (WooCommerce), delesiele.com, hilandana.es (con permiso de su dueña), el panel y el health de la API. Todos UP y con versión de WordPress detectada donde aplica. Falta decidir si se publican las credenciales en el README.
 
 ### Pendiente, en orden
-1. Aplicar el cambio de nombre, subir y comprobar el despliegue de punta a punta (arriba).
-2. **Presupuesto de AWS** (20 USD, solo recursos con la etiqueta `Project=sitewatch`): poner `enable_budget = true` cuando la etiqueta aparezca en Billing (`aws ce list-cost-allocation-tags --tag-keys Project`; tarda ~24 h desde la creación de recursos) y aplicar.
-3. **SES**: el dominio estaba en `PENDING` (los registros DNS resuelven bien; AWS tarda). Cuando esté verificado, probar `/api/me/notifications/test` en producción.
-4. **Telegram en producción**: guardar `TELEGRAM_BOT_TOKEN` en SSM (`/sitewatch/env/TELEGRAM_BOT_TOKEN`, SecureString) y redesplegar; cada usuario guarda su chat id en el panel.
-5. **Cuenta de demostración** para recruiters, con sitios de ejemplo (no la web de terceros usada en las pruebas).
-6. **Prometheus + Grafana**: la instancia tiene 1 GB de RAM (hoy usa ~346 MB); decidir entre Grafana Cloud gratis y alojarlo en la propia máquina (si no cabe, `t3.small` suma ~7,6 USD/mes). `/actuator/prometheus` está protegido por JWT y bloqueado en el proxy.
-7. **Verificación de email en el registro** y solo después pedir a AWS que saque SES del sandbox (hoy cualquiera podría registrar el correo de otra persona).
-8. **Copias de seguridad** de PostgreSQL (a S3) y mover el **estado de Terraform** (hoy local, con secretos) a un backend S3 cifrado.
-9. README en inglés y diagrama de arquitectura actualizado; limpieza de GitHub y ficha de WordPress freelance (ver `CLAUDE.local.md`).
-10. Mejoras: rangos de 7/30 días (requiere agregar datos en el backend), límite de intentos de login, i18n del panel.
-11. Fase 2: plugins vulnerables vía API de WPScan y página de estado pública.
+1. **Prometheus + Grafana**: la instancia tiene 1 GB de RAM (hoy usa ~346 MB); decidir entre Grafana Cloud gratis y alojarlo en la propia máquina (si no cabe, `t3.small` suma ~7,6 USD/mes). `/actuator/prometheus` está protegido por JWT y bloqueado en el proxy.
+2. **Verificación de email en el registro** y solo después pedir a AWS que saque SES del sandbox (hoy cualquiera podría registrar el correo de otra persona).
+3. **Copias de seguridad** de PostgreSQL (a S3) y mover el **estado de Terraform** (hoy local, con secretos) a un backend S3 cifrado.
+4. README en inglés y diagrama de arquitectura actualizado; limpieza de GitHub y ficha de WordPress freelance (ver `CLAUDE.local.md`).
+5. Mejoras: rangos de 7/30 días (requiere agregar datos en el backend), límite de intentos de login, i18n del panel.
+6. Fase 2: plugins vulnerables vía API de WPScan y página de estado pública.
 
 ### Lecciones (no repetir)
 - **El host de la API tiene un solo nivel** bajo la zona: el certificado gratuito de Cloudflare (Universal SSL) cubre `dominio` y `*.dominio`; en un nombre de segundo nivel todo apretón TLS falla en el borde aunque el servidor esté sano.
